@@ -1,2 +1,2 @@
-# cardNight
+# cardsNight
 create multiple card games for people to play. 
