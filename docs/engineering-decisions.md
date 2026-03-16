@@ -144,9 +144,9 @@ npm run test:e2e     # Playwright end-to-end tests
 ### Environment variables
 Never commit `.env.local`. Required variables:
 ```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=   # server-side only, never expose to client
+
+
+   # server-side only, never expose to client
 ```
 
 ---
