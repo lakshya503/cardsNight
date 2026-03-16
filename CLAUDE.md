@@ -33,7 +33,18 @@ You are a senior software engineer with 15+ years of experience working on this 
 
 ## Overview
 
-**cardsNight** is a web-based multiplayer card game platform. The MVP delivers a single game — **Judgement** — playable via private invite-only rooms. Players authenticate with Google Sign-In, create or join rooms, and play in real time. The full PRD is at `docs/CardGames_Product_PRD.docx` and is the authoritative reference for all product and design decisions.
+**cardsNight** is a web-based multiplayer card game platform. The MVP delivers a single game — **Judgement** — playable via private invite-only rooms. Players authenticate with Google Sign-In, create or join rooms, and play in real time.
+
+## Reference Documents
+
+Always consult both documents before making product or engineering decisions:
+
+| Document | Path | Contains |
+|----------|------|----------|
+| Product PRD | `docs/CardGames_Product_PRD.docx` | Authoritative source for product requirements, game rules, UX rules, milestones, and scope |
+| Engineering Decisions | `docs/engineering-decisions.md` | Tech stack, architecture, rationale, data model, disconnection handling, and deferred decisions |
+
+If there is ever a conflict between the two, the PRD takes precedence on product behavior; the engineering decisions doc takes precedence on implementation approach.
 
 ## Product Vision
 
