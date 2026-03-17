@@ -3,6 +3,14 @@ import withPWA from '@ducanh2912/next-pwa'
 
 const nextConfig: NextConfig = {
   turbopack: {}, // silence Turbopack/webpack conflict warning from next-pwa
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com', // Google profile pictures
+      },
+    ],
+  },
 }
 
 export default withPWA({
