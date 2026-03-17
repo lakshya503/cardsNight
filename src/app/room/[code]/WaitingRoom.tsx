@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { copy } from '@/lib/ui/copy'
 import { signOut } from '@/app/auth/actions'
@@ -108,6 +109,12 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
   const activeCount = players.filter((p) => p.status !== 'dropped').length
   const canStart = isHost && activeCount >= 4
 
+  async function leaveRoom() {
+    if (!window.confirm(copy.waitingRoom.leaveRoomConfirm)) return
+    await fetch(`/api/rooms/${room.code}/leave`, { method: 'POST' })
+    router.push('/')
+  }
+
   return (
     <main
       className="min-h-screen flex flex-col"
@@ -118,21 +125,31 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
         className="flex items-center justify-between px-6 py-4"
         style={{ borderBottom: '1px solid var(--color-border)' }}
       >
-        <span
+        <Link
+          href="/"
           className="text-2xl font-bold"
           style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)' }}
         >
           🃏 cardsNight
-        </span>
-        <form action={signOut}>
+        </Link>
+        <div className="flex items-center gap-4">
           <button
-            type="submit"
+            onClick={leaveRoom}
             className="text-sm cursor-pointer"
             style={{ color: 'var(--color-text-muted)' }}
           >
-            {copy.auth.signOutButton}
+            {copy.waitingRoom.leaveRoom}
           </button>
-        </form>
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="text-sm cursor-pointer"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              {copy.auth.signOutButton}
+            </button>
+          </form>
+        </div>
       </header>
 
       <div className="flex-1 flex flex-col items-center px-4 py-10 gap-8 max-w-2xl mx-auto w-full">

@@ -51,6 +51,8 @@ export const copy = {
     startGame:         'Start game',
     startGameDisabled: 'Round up at least 4 friends first!',
     waitingForHost:    "Hang tight — the host will start soon.",
+    leaveRoom:         'Leave room',
+    leaveRoomConfirm:  'Leave this room?',
     playerCount:       (current: number, max: number) =>
                          `${current} of ${max} players joined`,
   },
