@@ -59,18 +59,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         <form action={signInWithNext} className="w-full">
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-3 px-6 py-3 font-medium transition-colors cursor-pointer"
-            style={{
-              backgroundColor: 'var(--color-primary)',
-              color: 'var(--color-text-on-primary)',
-              borderRadius: 'var(--radius-md)',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-primary-hover)'
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-primary)'
-            }}
+            className="btn-primary w-full flex items-center justify-center gap-3 px-6 py-3 font-medium cursor-pointer"
           >
             <GoogleIcon />
             {copy.auth.signInButton}

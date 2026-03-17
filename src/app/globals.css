@@ -57,6 +57,18 @@
   --shadow-lg:  0 8px 24px rgba(28, 25, 23, 0.12);
 }
 
+/* ── Reusable component styles ───────────────────────── */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+  border-radius: var(--radius-md);
+  transition: background-color 150ms ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-hover);
+}
+
 /* ── Base styles ──────────────────────────────────────── */
 body {
   background-color: var(--color-background);
