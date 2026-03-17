@@ -59,6 +59,7 @@ export const copy = {
   errors: {
     roomNotFound:    "Hmm, we couldn't find that room. Double-check the code?",
     roomExpired:     "This room has expired. Ask your host to create a new one!",
+    roomInvalid:     "That room doesn't exist or has expired. Want to start your own?",
     roomFull:        "Looks like this party's packed! Try creating your own.",
     roomInProgress:  "This game's already started. Next time!",
     alreadyInRoom:   "You're already in this room — no need to join twice!",

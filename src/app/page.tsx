@@ -4,8 +4,20 @@ import { copy } from '@/lib/ui/copy'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import ToastBanner from '@/components/ToastBanner'
 
-export default async function HomePage() {
+const TOAST_MESSAGES: Record<string, string> = {
+  room_invalid:     copy.errors.roomInvalid,
+  room_full:        copy.errors.roomFull,
+  room_in_progress: copy.errors.roomInProgress,
+}
+
+interface HomePageProps {
+  searchParams: Promise<{ toast?: string }>
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const { toast } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -20,11 +32,15 @@ export default async function HomePage() {
   const displayName = profile?.display_name ?? user.email ?? 'Player'
   const avatarUrl = profile?.avatar_url
 
+  const toastMessage = toast ? (TOAST_MESSAGES[toast] ?? null) : null
+
   return (
     <main
       className="min-h-screen flex flex-col"
       style={{ backgroundColor: 'var(--color-background)' }}
     >
+      {toastMessage && <ToastBanner message={toastMessage} />}
+
       {/* Header */}
       <header
         className="flex items-center justify-between px-6 py-4"
