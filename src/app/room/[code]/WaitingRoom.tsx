@@ -132,24 +132,15 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
         >
           🃏 cardsNight
         </Link>
-        <div className="flex items-center gap-4">
+        <form action={signOut}>
           <button
-            onClick={leaveRoom}
+            type="submit"
             className="text-sm cursor-pointer"
             style={{ color: 'var(--color-text-muted)' }}
           >
-            {copy.waitingRoom.leaveRoom}
+            {copy.auth.signOutButton}
           </button>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="text-sm cursor-pointer"
-              style={{ color: 'var(--color-text-muted)' }}
-            >
-              {copy.auth.signOutButton}
-            </button>
-          </form>
-        </div>
+        </form>
       </header>
 
       <div className="flex-1 flex flex-col items-center px-4 py-10 gap-8 max-w-2xl mx-auto w-full">
@@ -318,6 +309,22 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
               {copy.waitingRoom.waitingForHost}
             </p>
           )}
+        </div>
+
+        {/* Leave room */}
+        <div className="w-full pt-2">
+          <button
+            onClick={leaveRoom}
+            className="w-full py-3 text-sm font-semibold cursor-pointer"
+            style={{
+              backgroundColor: 'var(--color-error-light)',
+              color: 'var(--color-error)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--color-error)',
+            }}
+          >
+            {copy.waitingRoom.leaveRoom}
+          </button>
         </div>
 
       </div>
