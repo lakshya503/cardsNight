@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { GameShell } from './GameShell'
+import { getPlayerHand } from '@/lib/game/server'
 
 interface PageProps {
   params: Promise<{ gameId: string }>
@@ -52,13 +53,48 @@ export default async function GamePage({ params }: PageProps) {
     .eq('status', 'active')
     .order('seat_order', { ascending: true })
 
+  const playerList = (players ?? []).map((p) => ({
+    userId: p.user_id,
+    seatOrder: p.seat_order ?? 0,
+    displayName: (p.profiles as { display_name: string } | null)?.display_name ?? 'Player',
+  }))
+
   // Fetch existing bids for current round
   const { data: bids } = round
-    ? await admin
-        .from('bids')
-        .select('player_id, amount')
-        .eq('round_id', round.id)
+    ? await admin.from('bids').select('player_id, amount').eq('round_id', round.id)
     : { data: [] }
+
+  // Fetch player's hand for the current round
+  const hand = round ? await getPlayerHand(admin, round.id, user.id) : []
+
+  // Fetch current trick (latest without a winner) and its cards
+  let currentTrick: { id: string; trick_number: number; led_suit: string | null; winner_id: string | null } | null = null
+  let trickCards: Array<{ playerId: string; displayName: string; suit: string; value: string }> = []
+
+  if (round?.status === 'playing') {
+    const { data: allTricks } = await admin
+      .from('tricks')
+      .select('id, trick_number, led_suit, winner_id')
+      .eq('round_id', round.id)
+      .order('trick_number', { ascending: true })
+
+    currentTrick = [...(allTricks ?? [])].reverse().find((t) => t.winner_id === null) ?? null
+
+    if (currentTrick) {
+      const { data: existingCards } = await admin
+        .from('trick_cards')
+        .select('player_id, suit, value')
+        .eq('trick_id', currentTrick.id)
+
+      const playerMap = Object.fromEntries(playerList.map((p) => [p.userId, p]))
+      trickCards = (existingCards ?? []).map((tc) => ({
+        playerId: tc.player_id,
+        displayName: playerMap[tc.player_id]?.displayName ?? 'Player',
+        suit: tc.suit,
+        value: tc.value,
+      }))
+    }
+  }
 
   return (
     <GameShell
@@ -66,13 +102,10 @@ export default async function GamePage({ params }: PageProps) {
       userId={user.id}
       initialRound={round ?? null}
       initialBids={bids ?? []}
-      players={
-        (players ?? []).map((p) => ({
-          userId: p.user_id,
-          seatOrder: p.seat_order ?? 0,
-          displayName: (p.profiles as { display_name: string } | null)?.display_name ?? 'Player',
-        }))
-      }
+      initialHand={hand}
+      initialCurrentTrick={currentTrick}
+      initialTrickCards={trickCards}
+      players={playerList}
     />
   )
 }
