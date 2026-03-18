@@ -55,14 +55,17 @@ export function getStartingBidderIndex(roundNumber: number, playerCount: number)
 // ---------------------------------------------------------------------------
 
 // Deals handSize cards to each player from a freshly shuffled 52-card deck.
-// Returns an immutable snapshot — caller stores this in hands rows.
-export function dealHands(playerIds: string[], handSize: number): Record<string, Card[]> {
+// Returns the dealt hands and the remaining undealt deck (for drawTrump).
+export function dealHands(
+  playerIds: string[],
+  handSize: number,
+): { hands: Record<string, Card[]>; remaining: Card[] } {
   const deck = shuffle(createDeck())
   const hands: Record<string, Card[]> = {}
   playerIds.forEach((id, i) => {
     hands[id] = deck.slice(i * handSize, (i + 1) * handSize)
   })
-  return hands
+  return { hands, remaining: deck.slice(playerIds.length * handSize) }
 }
 
 // The trump card is the first card of the remaining deck after dealing.

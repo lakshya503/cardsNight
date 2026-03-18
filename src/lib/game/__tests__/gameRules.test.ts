@@ -72,7 +72,7 @@ describe('getStartingBidderIndex', () => {
 
 describe('dealHands', () => {
   it('gives each player the correct number of cards', () => {
-    const hands = dealHands(['p1', 'p2', 'p3', 'p4'], 8)
+    const { hands } = dealHands(['p1', 'p2', 'p3', 'p4'], 8)
     expect(Object.keys(hands)).toHaveLength(4)
     for (const hand of Object.values(hands)) {
       expect(hand).toHaveLength(8)
@@ -80,16 +80,22 @@ describe('dealHands', () => {
   })
 
   it('deals no duplicate cards across players', () => {
-    const hands = dealHands(['p1', 'p2', 'p3', 'p4'], 8)
+    const { hands } = dealHands(['p1', 'p2', 'p3', 'p4'], 8)
     const all = Object.values(hands).flat().map((c) => `${c.suit}:${c.value}`)
     expect(new Set(all).size).toBe(all.length)
   })
 
   it('works for 2-player 10-card hands (largest deal)', () => {
-    const hands = dealHands(['p1', 'p2'], 10)
+    const { hands } = dealHands(['p1', 'p2'], 10)
     const all = Object.values(hands).flat()
     expect(all).toHaveLength(20)
     expect(new Set(all.map((c) => `${c.suit}:${c.value}`)).size).toBe(20)
+  })
+
+  it('returns remaining deck after dealing', () => {
+    const { remaining } = dealHands(['p1', 'p2', 'p3', 'p4'], 8)
+    // 52 - (4 * 8) = 20 remaining
+    expect(remaining).toHaveLength(20)
   })
 })
 
