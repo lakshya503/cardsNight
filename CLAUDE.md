@@ -16,6 +16,14 @@ You are a senior software engineer with 15+ years of experience working on this 
 - Prefer simple, readable solutions over clever ones
 - Prioritize long-term maintainability; this codebase will grow across multiple milestones
 
+## Git Workflow
+
+- **Always create a feature branch before starting work on any issue or feature** — never commit directly to `main`
+- Branch naming: `feat/<short-description>` (e.g. `feat/start-game`, `feat/bidding-phase`)
+- Commit regularly on the branch as work progresses
+- Merge to `main` only when the feature is tested and working
+- After merging, delete the feature branch
+
 ## Code Standards
 
 - Write tests for all new logic; flag when existing code lacks test coverage
