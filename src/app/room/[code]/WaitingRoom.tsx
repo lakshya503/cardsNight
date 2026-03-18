@@ -38,6 +38,7 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
   const [players, setPlayers] = useState<Player[]>(initialPlayers)
   const [copied, setCopied] = useState(false)
   const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
   const isHost = currentUserId === room.hostId
 
   const inviteUrl =
@@ -307,8 +308,13 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
                 className="btn-primary w-full py-3 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={async () => {
                   setStarting(true)
+                  setStartError(null)
                   const res = await fetch(`/api/rooms/${room.code}/start`, { method: 'POST' })
-                  if (!res.ok) setStarting(false)
+                  if (!res.ok) {
+                    const json = await res.json().catch(() => ({}))
+                    setStartError(json.error ?? 'Failed to start game. Please try again.')
+                    setStarting(false)
+                  }
                   // On success, the rooms UPDATE Realtime event redirects all players
                 }}
               >
@@ -317,6 +323,11 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
               {!canStart && (
                 <p className="text-sm text-center" style={{ color: 'var(--color-text-muted)' }}>
                   {copy.waitingRoom.startGameDisabled(MIN_PLAYERS)}
+                </p>
+              )}
+              {startError && (
+                <p className="text-sm text-center" style={{ color: 'var(--color-error)' }}>
+                  {startError}
                 </p>
               )}
             </div>
