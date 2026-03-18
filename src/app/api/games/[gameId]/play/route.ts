@@ -9,6 +9,9 @@ import {
 import { getPlayerHand } from '@/lib/game/server'
 import type { Card, Suit, CardValue, TrickCard } from '@/lib/game/types'
 
+const VALID_SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades']
+const VALID_VALUES: CardValue[] = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
+
 interface RouteContext {
   params: Promise<{ gameId: string }>
 }
@@ -30,7 +33,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const body = await request.json()
     suit = body.suit
     value = body.value
-    if (typeof suit !== 'string' || typeof value !== 'string') throw new Error()
+    if (!VALID_SUITS.includes(suit as Suit) || !VALID_VALUES.includes(value as CardValue)) throw new Error()
   } catch {
     return NextResponse.json({ error: 'suit and value must be strings' }, { status: 400 })
   }
@@ -161,10 +164,14 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   // Set led_suit on the trick when the first card is played
   if ((existingTrickCards ?? []).length === 0) {
-    await admin
+    const { error: ledSuitError } = await admin
       .from('tricks')
       .update({ led_suit: card.suit })
       .eq('id', currentTrick.id)
+    if (ledSuitError) {
+      console.error('[play] led_suit update error:', ledSuitError)
+      return NextResponse.json({ error: 'Failed to record led suit' }, { status: 500 })
+    }
   }
 
   const totalPlayed = (existingTrickCards?.length ?? 0) + 1
@@ -173,10 +180,14 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     // Trick still in progress — advance to next player in seat order
     const currentIdx = players.findIndex((p) => p.user_id === user.id)
     const nextPlayerId = players[(currentIdx + 1) % players.length].user_id
-    await admin
+    const { error: advanceError } = await admin
       .from('rounds')
       .update({ current_player_id: nextPlayerId })
       .eq('id', round.id)
+    if (advanceError) {
+      console.error('[play] advance turn error:', advanceError)
+      return NextResponse.json({ error: 'Failed to advance turn' }, { status: 500 })
+    }
     return NextResponse.json({ status: 'trick_in_progress' }, { status: 200 })
   }
 
@@ -193,21 +204,35 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   const effectiveLead = (currentTrick.led_suit ?? card.suit) as Suit
   const winnerId = getTrickWinner(allCards, round.trump_suit as Suit, effectiveLead)
 
-  await admin
+  const { error: trickWinError } = await admin
     .from('tricks')
     .update({ winner_id: winnerId })
     .eq('id', currentTrick.id)
 
-  await admin
+  if (trickWinError) {
+    console.error('[play] trick winner update error:', trickWinError)
+    return NextResponse.json({ error: 'Failed to record trick winner' }, { status: 500 })
+  }
+
+  const { error: trickLeaderError } = await admin
     .from('rounds')
     .update({ current_player_id: winnerId })
     .eq('id', round.id)
 
-  // Insert next trick or transition round to scoring
+  if (trickLeaderError) {
+    console.error('[play] trick leader update error:', trickLeaderError)
+    return NextResponse.json({ error: 'Failed to update round leader' }, { status: 500 })
+  }
+
+  // Insert next trick or transition round to complete
   if (currentTrick.trick_number < round.hand_size) {
-    await admin
+    const { error: nextTrickError } = await admin
       .from('tricks')
       .insert({ round_id: round.id, trick_number: currentTrick.trick_number + 1 })
+    if (nextTrickError) {
+      console.error('[play] next trick insert error:', nextTrickError)
+      return NextResponse.json({ error: 'Failed to create next trick' }, { status: 500 })
+    }
     return NextResponse.json({ status: 'trick_complete', winnerId }, { status: 200 })
   }
 
@@ -260,10 +285,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   // Mark this round complete
-  await admin
+  const { error: roundCompleteError } = await admin
     .from('rounds')
     .update({ status: 'complete', current_player_id: null })
     .eq('id', round.id)
+
+  if (roundCompleteError) {
+    console.error('[play] round complete update error:', roundCompleteError)
+    return NextResponse.json({ error: 'Failed to complete round' }, { status: 500 })
+  }
 
   // ── Start next round or end game ─────────────────────────────────────────
 
@@ -296,13 +326,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: 'Failed to start next round' }, { status: 500 })
     }
 
-    await admin.from('hands').insert(
+    const { error: handsError } = await admin.from('hands').insert(
       playerIds.map((playerId) => ({
         round_id: nextRound.id,
         player_id: playerId,
         cards: hands[playerId],
       }))
     )
+
+    if (handsError) {
+      console.error('[play] hands insert error:', handsError)
+      return NextResponse.json({ error: 'Failed to deal next round hands' }, { status: 500 })
+    }
 
     return NextResponse.json({ status: 'round_complete', winnerId }, { status: 200 })
   }
@@ -344,7 +379,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Failed to record game results' }, { status: 500 })
   }
 
-  await admin.from('games').update({ status: 'finished' }).eq('id', gameId)
+  const { error: gameFinishError } = await admin
+    .from('games')
+    .update({ status: 'finished' })
+    .eq('id', gameId)
+
+  if (gameFinishError) {
+    console.error('[play] game finish update error:', gameFinishError)
+    return NextResponse.json({ error: 'Failed to finish game' }, { status: 500 })
+  }
 
   return NextResponse.json({ status: 'game_complete', winnerId }, { status: 200 })
 }

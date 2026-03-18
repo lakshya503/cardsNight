@@ -44,7 +44,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     .from('rounds')
     .select('id')
     .eq('game_id', gameId)
-    .in('status', ['bidding', 'playing', 'scoring'])
+    .in('status', ['bidding', 'playing'])
     .order('round_number', { ascending: false })
     .limit(1)
     .maybeSingle()
