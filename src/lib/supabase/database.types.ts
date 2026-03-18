@@ -239,6 +239,7 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          current_game_id: string | null
           expires_at: string
           game_type: string
           host_id: string
@@ -250,6 +251,7 @@ export type Database = {
         Insert: {
           code: string
           created_at?: string
+          current_game_id?: string | null
           expires_at?: string
           game_type?: string
           host_id: string
@@ -261,6 +263,7 @@ export type Database = {
         Update: {
           code?: string
           created_at?: string
+          current_game_id?: string | null
           expires_at?: string
           game_type?: string
           host_id?: string
@@ -270,6 +273,13 @@ export type Database = {
           turn_timer_seconds?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "rooms_current_game_id_fkey"
+            columns: ["current_game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rooms_host_id_fkey"
             columns: ["host_id"]

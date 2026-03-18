@@ -37,6 +37,7 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
   const router = useRouter()
   const [players, setPlayers] = useState<Player[]>(initialPlayers)
   const [copied, setCopied] = useState(false)
+  const [starting, setStarting] = useState(false)
   const isHost = currentUserId === room.hostId
 
   const inviteUrl =
@@ -75,12 +76,12 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
     }
   }, [room.id])
 
-  // Subscribe to room_players changes via Postgres Changes
+  // Subscribe to room_players changes (player list) and rooms changes (game start)
   useEffect(() => {
     const supabase = createClient()
 
     const channel = supabase
-      .channel(`room-players-${room.id}`)
+      .channel(`waiting-room-${room.id}`)
       .on(
         'postgres_changes',
         {
@@ -89,9 +90,21 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
           table: 'room_players',
           filter: `room_id=eq.${room.id}`,
         },
-        () => {
-          // Refetch full list — payload lacks joined profile data
-          refreshPlayers()
+        () => refreshPlayers()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'rooms',
+          filter: `id=eq.${room.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as { status: string; current_game_id: string | null }
+          if (updated.status === 'in_progress' && updated.current_game_id) {
+            router.push(`/game/${updated.current_game_id}`)
+          }
         }
       )
       .subscribe()
@@ -99,7 +112,7 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [room.id, refreshPlayers])
+  }, [room.id, refreshPlayers, router])
 
   async function copyInviteLink() {
     await navigator.clipboard.writeText(inviteUrl)
@@ -290,9 +303,14 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
           {isHost ? (
             <div className="flex flex-col gap-2">
               <button
-                disabled={!canStart}
+                disabled={!canStart || starting}
                 className="btn-primary w-full py-3 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => {/* M2: start game logic */}}
+                onClick={async () => {
+                  setStarting(true)
+                  const res = await fetch(`/api/rooms/${room.code}/start`, { method: 'POST' })
+                  if (!res.ok) setStarting(false)
+                  // On success, the rooms UPDATE Realtime event redirects all players
+                }}
               >
                 {copy.waitingRoom.startGame}
               </button>
