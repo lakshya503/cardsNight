@@ -31,6 +31,13 @@ M2 goal: 4+ friends play a complete game of Judgement with correct rules, scorin
 ### Configuration
 - `playwright.config.ts` loads `.env.local` via dotenv so Supabase keys are available in test env
 
+### Refactored (post-M2 cleanup)
+- `leave/route.ts`: switched room DB query to admin client (consistent with M2 pattern)
+- `Scoreboard.tsx`: removed `currentTricksWon` field that was never populated (always showed "0/N tricks"); replaced with "bid N" display; tricks-won tracking deferred to M3
+- `GameShell.tsx`: removed dead `round_id?: string` from `Round` interface
+- E2E `bidding.spec.ts`, `play.spec.ts`: removed local `adminClient`/`getCurrentRound`/`getPlayerHand` duplicates in favour of shared helpers
+- E2E all spec files: added `cleanupRoom()` in `afterAll` so rooms, games, rounds, tricks, bids, hands, and scores no longer accumulate across test runs
+
 ### Fixed (post-M2 E2E stability)
 - Middleware excluded from `/api` routes — was calling `getUser()` on every API request, doubling Supabase Auth calls and hitting free-tier rate limits under E2E load
 - `POST /api/rooms/[code]/join` switched all DB queries to admin client — self-referential RLS policy on `room_players` caused 500 errors for guests not yet in a room
