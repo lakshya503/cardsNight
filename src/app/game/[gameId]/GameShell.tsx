@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { BiddingPanel } from './BiddingPanel'
 
@@ -37,6 +37,12 @@ export function GameShell({ gameId, userId, initialRound, initialBids, players }
   const [round, setRound] = useState<Round | null>(initialRound)
   const [bids, setBids] = useState<Bid[]>(initialBids)
 
+  // Ref so the bid INSERT handler always sees the current round.id
+  // without needing round in the channel's useEffect deps (which would
+  // cause the channel to tear down and recreate on every round update).
+  const roundRef = useRef<Round | null>(initialRound)
+  useEffect(() => { roundRef.current = round }, [round])
+
   useEffect(() => {
     const supabase = createClient()
 
@@ -47,20 +53,22 @@ export function GameShell({ gameId, userId, initialRound, initialBids, players }
         { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` },
         (payload) => {
           setRound(payload.new as Round)
+          // Round transition clears stale bids (e.g. new round starts)
+          if ((payload.new as Round).id !== roundRef.current?.id) {
+            setBids([])
+          }
         }
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'bids' },
         (payload) => {
-          const bid = payload.new as Bid
-          // Only append if it belongs to the current round
-          setBids((prev) => {
-            if (round && bid.player_id && prev.every((b) => b.player_id !== bid.player_id)) {
-              return [...prev, bid]
-            }
-            return prev
-          })
+          const bid = payload.new as Bid & { round_id: string }
+          // Ignore bids from other rounds
+          if (bid.round_id !== roundRef.current?.id) return
+          setBids((prev) =>
+            prev.some((b) => b.player_id === bid.player_id) ? prev : [...prev, bid]
+          )
         }
       )
       .subscribe()
@@ -68,7 +76,7 @@ export function GameShell({ gameId, userId, initialRound, initialBids, players }
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [gameId, round])
+  }, [gameId]) // gameId never changes; no need to re-subscribe on round updates
 
   const isMyTurn = round?.current_player_id === userId
   const isBidding = round?.status === 'bidding'
