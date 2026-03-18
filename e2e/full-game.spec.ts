@@ -49,6 +49,11 @@ test.afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 test.describe('Full game lifecycle', () => {
+  // These two tests share full-host / full-guest users. Running them in parallel
+  // causes concurrent signIns for the same user, which can invalidate each other's
+  // sessions on Supabase's free tier. Serial mode prevents that race.
+  test.describe.configure({ mode: 'serial' })
+
   test('round 1 completes: round_scores inserted and round 2 starts in bidding', async ({ browser }) => {
     test.setTimeout(60_000)
     const hostCtx = await browser.newContext()
@@ -141,7 +146,7 @@ test.describe('Full game lifecycle', () => {
   })
 
   test('full game completes: game_results inserted and results page renders', async ({ browser }) => {
-    test.setTimeout(180_000) // 3 min — full 10-round game
+    test.setTimeout(300_000) // 5 min — full 10-round game (~250 API calls at ~500ms each)
 
     const hostCtx = await browser.newContext()
     const guestCtx = await browser.newContext()
