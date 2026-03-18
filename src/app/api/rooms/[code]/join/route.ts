@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse, type NextRequest } from 'next/server'
 
 interface RouteContext {
@@ -8,6 +9,7 @@ interface RouteContext {
 export async function POST(request: NextRequest, { params }: RouteContext) {
   const { code } = await params
   const supabase = await createClient()
+  const admin = createAdminClient()
 
   // Auth check
   const { data: { user } } = await supabase.auth.getUser()
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   // Fetch room — must exist, not expired, not cancelled
-  const { data: room, error: roomError } = await supabase
+  const { data: room, error: roomError } = await admin
     .from('rooms')
     .select('id, status, max_players, code')
     .eq('code', code.toUpperCase())
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   // Check if player is already in the room
-  const { data: existingPlayer, error: existingError } = await supabase
+  const { data: existingPlayer, error: existingError } = await admin
     .from('room_players')
     .select('id')
     .eq('room_id', room.id)
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   // Check current player count (excludes dropped players)
-  const { count, error: countError } = await supabase
+  const { count, error: countError } = await admin
     .from('room_players')
     .select('id', { count: 'exact', head: true })
     .eq('room_id', room.id)
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   // Join the room
-  const { error: insertError } = await supabase
+  const { error: insertError } = await admin
     .from('room_players')
     .insert({
       room_id: room.id,
