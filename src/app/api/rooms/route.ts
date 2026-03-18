@@ -20,14 +20,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { game_type, max_players, turn_timer_seconds } = body as Record<string, unknown>
+  const { game_type, max_players, turn_timer_seconds } = body as {
+    game_type: string
+    max_players: number
+    turn_timer_seconds?: number | null
+  }
 
   // Validate
-  const errors = validateCreateRoomInput({
-    game_type: game_type as string,
-    max_players: max_players as number,
-    turn_timer_seconds: turn_timer_seconds as number | null | undefined,
-  })
+  const errors = validateCreateRoomInput({ game_type, max_players, turn_timer_seconds })
 
   if (errors.length > 0) {
     return NextResponse.json({ error: 'Validation failed', details: errors }, { status: 422 })
