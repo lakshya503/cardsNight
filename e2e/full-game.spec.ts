@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { createTestUser, deleteTestUser, signIn, type TestUser } from './helpers/auth'
-import { createRoom, joinRoom, startGame, placeBid, playCard, playFullGame, getCurrentRound, getHandDirect } from './helpers/game'
+import { createRoom, joinRoom, startGame, placeBid, playCard, playFullGame, getCurrentRound, getHandDirect, cleanupRoom } from './helpers/game'
 import { createClient } from '@supabase/supabase-js'
 
 function adminClient() {
@@ -35,6 +35,7 @@ async function getSeatOrder(gameId: string): Promise<{ userId: string; seatOrder
 
 let host: TestUser
 let guest: TestUser
+const createdRoomCodes: string[] = []
 
 test.beforeAll(async () => {
   host = await createTestUser('full-host')
@@ -42,6 +43,9 @@ test.beforeAll(async () => {
 })
 
 test.afterAll(async () => {
+  for (const code of createdRoomCodes) {
+    await cleanupRoom(code)
+  }
   await deleteTestUser(host.userId)
   await deleteTestUser(guest.userId)
 })
@@ -66,6 +70,7 @@ test.describe('Full game lifecycle', () => {
       await signIn(guestPage, guest.email, guest.password)
 
       const code = await createRoom(hostPage)
+      createdRoomCodes.push(code)
       await joinRoom(guestPage, code)
       const gameId = await startGame(hostPage, code)
 
@@ -159,6 +164,7 @@ test.describe('Full game lifecycle', () => {
       await signIn(guestPage, guest.email, guest.password)
 
       const code = await createRoom(hostPage)
+      createdRoomCodes.push(code)
       await joinRoom(guestPage, code)
       const gameId = await startGame(hostPage, code)
 

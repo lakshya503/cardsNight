@@ -4,9 +4,7 @@ interface PlayerScore {
   userId: string
   displayName: string
   total: number
-  // Current round context (if available)
   currentBid?: number
-  currentTricksWon?: number
 }
 
 interface Props {
@@ -31,9 +29,7 @@ export function Scoreboard({ scores, currentRoundNumber }: Props) {
             </div>
             <div className="flex items-center gap-3 text-sm">
               {s.currentBid !== undefined && (
-                <span className="text-slate-400">
-                  {s.currentTricksWon ?? 0}/{s.currentBid} tricks
-                </span>
+                <span className="text-slate-400">bid {s.currentBid}</span>
               )}
               <span className="font-bold tabular-nums">{s.total}</span>
             </div>

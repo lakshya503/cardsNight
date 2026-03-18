@@ -1,31 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { createTestUser, deleteTestUser, signIn, type TestUser } from './helpers/auth'
-import { createRoom, joinRoom, startGame, placeBid } from './helpers/game'
-import { createClient } from '@supabase/supabase-js'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function adminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-}
-
-async function getCurrentRound(gameId: string) {
-  const admin = adminClient()
-  const { data } = await admin
-    .from('rounds')
-    .select('id, round_number, hand_size, status, current_player_id')
-    .eq('game_id', gameId)
-    .order('round_number', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  return data
-}
+import { createRoom, joinRoom, startGame, placeBid, getCurrentRound, cleanupRoom } from './helpers/game'
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -33,6 +8,7 @@ async function getCurrentRound(gameId: string) {
 
 let host: TestUser
 let guest: TestUser
+const createdRoomCodes: string[] = []
 
 test.beforeAll(async () => {
   host = await createTestUser('bid-host')
@@ -40,6 +16,9 @@ test.beforeAll(async () => {
 })
 
 test.afterAll(async () => {
+  for (const code of createdRoomCodes) {
+    await cleanupRoom(code)
+  }
   await deleteTestUser(host.userId)
   await deleteTestUser(guest.userId)
 })
@@ -60,6 +39,7 @@ test.describe('Bidding phase', () => {
       await signIn(guestPage, guest.email, guest.password)
 
       const code = await createRoom(hostPage)
+      createdRoomCodes.push(code)
       await joinRoom(guestPage, code)
       const gameId = await startGame(hostPage, code)
 
@@ -82,6 +62,7 @@ test.describe('Bidding phase', () => {
       await signIn(guestPage, guest.email, guest.password)
 
       const code = await createRoom(hostPage)
+      createdRoomCodes.push(code)
       await joinRoom(guestPage, code)
       const gameId = await startGame(hostPage, code)
 
@@ -125,6 +106,7 @@ test.describe('Bidding phase', () => {
       await signIn(guestPage, guest.email, guest.password)
 
       const code = await createRoom(hostPage)
+      createdRoomCodes.push(code)
       await joinRoom(guestPage, code)
       const gameId = await startGame(hostPage, code)
 

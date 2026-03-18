@@ -18,7 +18,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   // Fetch room — must exist and be in waiting state
-  const { data: room } = await supabase
+  const { data: room } = await admin
     .from('rooms')
     .select('id, host_id, status')
     .eq('code', code.toUpperCase())
