@@ -16,7 +16,6 @@ interface Player {
 
 interface Round {
   id: string
-  round_id?: string
   round_number: number
   hand_size: number
   trump_suit: string

@@ -126,6 +126,53 @@ export async function getHand(
 }
 
 /**
+ * Deletes all database records for a room (identified by room code) in dependency order.
+ * Call this in afterAll to keep the test database clean.
+ *
+ * FK cascade summary (from schema):
+ *   rooms → room_players (CASCADE); everything else requires explicit ordered deletes.
+ */
+export async function cleanupRoom(code: string): Promise<void> {
+  const admin = adminClient()
+
+  // Resolve room
+  const { data: room } = await admin.from('rooms').select('id').eq('code', code).maybeSingle()
+  if (!room) return
+
+  // Resolve games for this room
+  const { data: games } = await admin.from('games').select('id').eq('room_id', room.id)
+  const gameIds = (games ?? []).map((g: { id: string }) => g.id)
+
+  if (gameIds.length > 0) {
+    // Resolve rounds for these games
+    const { data: rounds } = await admin.from('rounds').select('id').in('game_id', gameIds)
+    const roundIds = (rounds ?? []).map((r: { id: string }) => r.id)
+
+    if (roundIds.length > 0) {
+      // Resolve tricks for these rounds
+      const { data: tricks } = await admin.from('tricks').select('id').in('round_id', roundIds)
+      const trickIds = (tricks ?? []).map((t: { id: string }) => t.id)
+
+      if (trickIds.length > 0) {
+        await admin.from('trick_cards').delete().in('trick_id', trickIds)
+        await admin.from('tricks').delete().in('round_id', roundIds)
+      }
+
+      await admin.from('round_scores').delete().in('round_id', roundIds)
+      await admin.from('bids').delete().in('round_id', roundIds)
+      await admin.from('hands').delete().in('round_id', roundIds)
+      await admin.from('rounds').delete().in('game_id', gameIds)
+    }
+
+    await admin.from('game_results').delete().in('game_id', gameIds)
+    await admin.from('games').delete().in('room_id', [room.id])
+  }
+
+  // room_players cascade from rooms; delete room last
+  await admin.from('rooms').delete().eq('id', room.id)
+}
+
+/**
  * Plays a card via the API. The page must be authenticated as the current player.
  * Retries once on 500 to handle transient Supabase connection drops.
  */
