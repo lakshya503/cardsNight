@@ -16,6 +16,12 @@ You are a senior software engineer with 15+ years of experience working on this 
 - Prefer simple, readable solutions over clever ones
 - Prioritize long-term maintainability; this codebase will grow across multiple milestones
 
+## Documentation
+
+- **Keep `CLAUDE.md` up to date** — if a decision is made, a pattern is established, or the stack changes, update this file in the same commit
+- **Keep `CHANGELOG.md` up to date** — after merging a feature branch to `main`, add an entry under the appropriate version/milestone section following Keep a Changelog format (`Added`, `Changed`, `Fixed`, `Removed`)
+- **Keep `docs/engineering-decisions.md` up to date** — if an architectural decision is made or revised during development, record it there immediately
+
 ## Git Workflow
 
 - **Always create a feature branch before starting work on any issue or feature** — never commit directly to `main`
