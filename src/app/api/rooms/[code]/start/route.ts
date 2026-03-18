@@ -123,10 +123,15 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
   }
 
   // Update room — triggers WaitingRoom Realtime redirect for all players
-  await admin
+  const { error: roomUpdateError } = await admin
     .from('rooms')
     .update({ status: 'in_progress', current_game_id: game.id })
     .eq('id', room.id)
+
+  if (roomUpdateError) {
+    console.error('[start] Room update error:', roomUpdateError)
+    return NextResponse.json({ error: 'Failed to start game' }, { status: 500 })
+  }
 
   return NextResponse.json({ gameId: game.id }, { status: 200 })
 }

@@ -316,8 +316,12 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
                     const json = await res.json().catch(() => ({}))
                     setStartError(json.error ?? 'Failed to start game. Please try again.')
                     setStarting(false)
+                    return
                   }
-                  // On success, the rooms UPDATE Realtime event redirects all players
+                  // Host redirects directly from the API response.
+                  // Other players are redirected via the rooms UPDATE Realtime event.
+                  const { gameId } = await res.json()
+                  router.push(`/game/${gameId}`)
                 }}
               >
                 {copy.waitingRoom.startGame}
