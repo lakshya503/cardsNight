@@ -29,14 +29,16 @@ Four or more friends can play a complete game of Judgement with correct rules, s
 | WaitingRoom redirect | `WaitingRoom` subscribes to `rooms` UPDATE; redirects when `status = 'in_progress'` | Room status is already source of truth — requires adding `rooms` to Realtime publication (see Schema Changes) |
 | Hand tracking | `hands.cards` is **immutable** after dealing; current hand derived server-side as `dealt_cards − played trick_cards for this round` | Avoids JSONB mutation race conditions; consistent with existing schema comment |
 | Hand delivery to client | `rounds` INSERT triggers client to call `GET /api/games/[gameId]/hand` | `hands` table excluded from Realtime — broadcasting hand data would expose cards to all subscribers |
-| Game end detection | `GameBoard` subscribes to `games` UPDATE; `ResultsPanel` renders when `games.status = 'finished'` — requires adding `games` to Realtime publication (see Schema Changes) |
+| Game end detection | `GameBoard` subscribes to `games` UPDATE; on `status = 'finished'` navigates to `/game/[gameId]/results` — requires adding `games` to Realtime publication (see Schema Changes) |
+| Results screen | Separate route `/game/[gameId]/results/page.tsx` — server component that fetches `game_results` fresh; bookmarkable, cleanly server-rendered | ResultsPanel as inline GameBoard render creates unnecessary Realtime state coupling for a read-only summary page |
+| RLS for game tables | Read policies for `games`, `rounds`, `bids`, `tricks`, `trick_cards`, `round_scores`, `game_results` added in Slice 2 migration; `hands` excluded (server-side only) | Realtime subscriptions run under anon key — without policies clients receive no Postgres Changes events |
 | Placement ranking | Dense ranking — ties share a placement; next distinct score gets next consecutive placement (1, 1, 2 not 1, 1, 3) | Avoids punishing players below a tie |
 
 ---
 
 ## Schema Changes Required (new migrations for M2)
 
-The existing migration `20260317000000_realtime_game_tables.sql` already adds `rounds`, `bids`, `trick_cards`, `tricks`, and `round_scores` to the Realtime publication. A second migration is needed for the two remaining tables, and a third to add `current_game_id` to `rooms`:
+The existing migration `20260317000000_realtime_game_tables.sql` already adds `rounds`, `bids`, `trick_cards`, `tricks`, and `round_scores` to the Realtime publication. Three further migrations are needed:
 
 ```sql
 -- Migration: 20260317000001_realtime_rooms_games.sql
@@ -45,11 +47,96 @@ alter publication supabase_realtime add table games;
 
 -- Migration: 20260317000002_rooms_current_game_id.sql
 alter table rooms add column current_game_id uuid references games(id) on delete set null;
+
+-- Migration: 20260317000003_game_rls_policies.sql
+-- Authenticated players can read game data for rooms they are in.
+-- hands is intentionally excluded — it is served via API route only.
+
+create policy "Players can read games for their rooms"
+  on public.games for select to authenticated
+  using (
+    exists (
+      select 1 from public.room_players rp
+      where rp.room_id = games.room_id
+        and rp.user_id = auth.uid()
+    )
+  );
+
+create policy "Players can read rounds for their games"
+  on public.rounds for select to authenticated
+  using (
+    exists (
+      select 1 from public.games g
+      join public.room_players rp on rp.room_id = g.room_id
+      where g.id = rounds.game_id
+        and rp.user_id = auth.uid()
+    )
+  );
+
+create policy "Players can read bids for their games"
+  on public.bids for select to authenticated
+  using (
+    exists (
+      select 1 from public.rounds r
+      join public.games g on g.id = r.game_id
+      join public.room_players rp on rp.room_id = g.room_id
+      where r.id = bids.round_id
+        and rp.user_id = auth.uid()
+    )
+  );
+
+create policy "Players can read tricks for their games"
+  on public.tricks for select to authenticated
+  using (
+    exists (
+      select 1 from public.rounds r
+      join public.games g on g.id = r.game_id
+      join public.room_players rp on rp.room_id = g.room_id
+      where r.id = tricks.round_id
+        and rp.user_id = auth.uid()
+    )
+  );
+
+create policy "Players can read trick_cards for their games"
+  on public.trick_cards for select to authenticated
+  using (
+    exists (
+      select 1 from public.tricks t
+      join public.rounds r on r.id = t.round_id
+      join public.games g on g.id = r.game_id
+      join public.room_players rp on rp.room_id = g.room_id
+      where t.id = trick_cards.trick_id
+        and rp.user_id = auth.uid()
+    )
+  );
+
+create policy "Players can read round_scores for their games"
+  on public.round_scores for select to authenticated
+  using (
+    exists (
+      select 1 from public.rounds r
+      join public.games g on g.id = r.game_id
+      join public.room_players rp on rp.room_id = g.room_id
+      where r.id = round_scores.round_id
+        and rp.user_id = auth.uid()
+    )
+  );
+
+create policy "Players can read game_results for their games"
+  on public.game_results for select to authenticated
+  using (
+    exists (
+      select 1 from public.games g
+      join public.room_players rp on rp.room_id = g.room_id
+      where g.id = game_results.game_id
+        and rp.user_id = auth.uid()
+    )
+  );
 ```
 
 `current_game_id` is set by the `start` endpoint when creating the game and is included in every `rooms` UPDATE payload. This is how non-host players obtain the `gameId` for the redirect — they read it directly from the Realtime event payload.
 
-`hands` must **not** be added — it would expose all players' cards to all subscribers.
+`hands` must **not** be added to Realtime or given a public read policy — it is served only via `GET /api/games/[gameId]/hand` using the service-role client.
 
 ---
 
@@ -300,7 +387,8 @@ determinePlacements(
 - Owns all Realtime subscriptions for the game screen (set up once; persist for entire session)
 - Manages phase state derived from `rounds.status` and `games.status`
 - On `rounds` INSERT: re-fetches player's hand via `GET /api/games/[gameId]/hand`
-- Renders conditionally based on phase: `<BiddingPanel>` | `<TrickPanel>` | `<ResultsPanel>`
+- On `games.status = 'finished'`: calls `router.push('/game/[gameId]/results')`
+- Renders conditionally based on phase: `<BiddingPanel>` | `<TrickPanel>`
 - Always renders: `<TrumpDisplay>`, `<PlayerHand>`, `<Scoreboard>`
 
 ### Realtime subscriptions
@@ -309,7 +397,7 @@ determinePlacements(
 |---|---|---|---|
 | `WaitingRoom` | `rooms` | UPDATE | Redirect to `/game/[event.new.current_game_id]` when `status = 'in_progress'` |
 | `GameBoard` | `rooms` | UPDATE | Detect unexpected cancellation; show error if `status = 'cancelled'` |
-| `GameBoard` | `games` | UPDATE | Show `<ResultsPanel>` when `status = 'finished'` |
+| `GameBoard` | `games` | UPDATE | Navigate to `/game/[gameId]/results` when `status = 'finished'` |
 | `GameBoard` | `rounds` | INSERT, UPDATE | Phase transitions; trump card; current player; INSERT triggers hand refetch |
 | `GameBoard` | `bids` | INSERT | Scoreboard bid column; last-bidder restriction UI |
 | `GameBoard` | `trick_cards` | INSERT | Cards shown on table in TrickPanel |
@@ -325,7 +413,7 @@ determinePlacements(
 - **`TrickPanel`**: cards played so far in current trick; whose turn it is
 - **`PlayerHand`**: current user's cards; interactive (clickable) only on their turn during `playing` phase; on invalid play, card stays in hand and an error message is shown
 - **`Scoreboard`**: cumulative scores, current-round bids, tricks won this round — always visible
-- **`ResultsPanel`**: final standings with placements; option to return to home
+- **`ResultsPanel`** (`/game/[gameId]/results/page.tsx`): server component; fetches `game_results` fresh; final standings with placements; winner(s) highlighted; "Play again" returns to home screen
 
 ---
 
