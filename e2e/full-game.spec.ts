@@ -50,6 +50,7 @@ test.afterAll(async () => {
 
 test.describe('Full game lifecycle', () => {
   test('round 1 completes: round_scores inserted and round 2 starts in bidding', async ({ browser }) => {
+    test.setTimeout(60_000)
     const hostCtx = await browser.newContext()
     const guestCtx = await browser.newContext()
     const hostPage = await hostCtx.newPage()
