@@ -49,7 +49,7 @@ export const copy = {
     linkCopied:        'Link copied — send it!',
     roomCodeLabel:     'Room code',
     startGame:         'Start game',
-    startGameDisabled: 'Need at least 2 players to start!',
+    startGameDisabled: (min: number) => `Need at least ${min} players to start!`,
     waitingForHost:    "Hang tight — the host will start soon.",
     leaveRoom:         'Leave room',
     leaveRoomConfirm:  'Leave this room?',

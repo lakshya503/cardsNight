@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { generateUniqueRoomCode } from '@/lib/game/roomCode'
 import { validateCreateRoomInput } from '@/lib/game/validation'
+import type { GameType } from '@/lib/game/types'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -26,8 +27,8 @@ export async function POST(request: NextRequest) {
     turn_timer_seconds?: number | null
   }
 
-  // Validate
-  const errors = validateCreateRoomInput({ game_type, max_players, turn_timer_seconds })
+  // Validate — game_type arrives as string from JSON; validation rejects unknown values
+  const errors = validateCreateRoomInput({ game_type: game_type as GameType, max_players, turn_timer_seconds })
 
   if (errors.length > 0) {
     return NextResponse.json({ error: 'Validation failed', details: errors }, { status: 422 })

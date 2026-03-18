@@ -1,13 +1,13 @@
 import type { GameType } from './types'
 
 export const VALID_GAME_TYPES: GameType[] = ['judgement']
-export const MIN_PLAYERS = 2 // temporary: lowered for dev testing; revert to 4 before launch
+export const MIN_PLAYERS = 4
 export const MAX_PLAYERS = 10
 export const MIN_TIMER_SECONDS = 15
 export const MAX_TIMER_SECONDS = 120
 
 export type CreateRoomInput = {
-  game_type: string
+  game_type: GameType
   max_players: number
   turn_timer_seconds?: number | null
 }
@@ -17,7 +17,7 @@ export type ValidationError = { field: string; message: string }
 export function validateCreateRoomInput(input: CreateRoomInput): ValidationError[] {
   const errors: ValidationError[] = []
 
-  if (!VALID_GAME_TYPES.includes(input.game_type as GameType)) {
+  if (!VALID_GAME_TYPES.includes(input.game_type)) {
     errors.push({
       field: 'game_type',
       message: `game_type must be one of: ${VALID_GAME_TYPES.join(', ')}`,

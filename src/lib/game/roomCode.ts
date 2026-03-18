@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/supabase/database.types'
 
 // Excludes ambiguous characters: 0, O, 1, I, L
 const CHARSET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
@@ -23,7 +24,7 @@ export function generateRoomCode(): string {
  * Throws if a unique code cannot be found within MAX_RETRIES attempts.
  */
 export async function generateUniqueRoomCode(
-  supabase: SupabaseClient
+  supabase: SupabaseClient<Database>
 ): Promise<string> {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     const code = generateRoomCode()

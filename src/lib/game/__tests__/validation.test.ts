@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { validateCreateRoomInput } from '../validation'
+import type { GameType } from '../types'
 
 describe('validateCreateRoomInput', () => {
   const validInput = {
-    game_type: 'judgement',
+    game_type: 'judgement' as GameType,
     max_players: 6,
     turn_timer_seconds: 30,
   }
@@ -23,13 +24,13 @@ describe('validateCreateRoomInput', () => {
 
   // game_type
   it('rejects unknown game_type', () => {
-    const errors = validateCreateRoomInput({ ...validInput, game_type: 'poker' })
+    const errors = validateCreateRoomInput({ ...validInput, game_type: 'poker' as GameType })
     expect(errors).toHaveLength(1)
     expect(errors[0].field).toBe('game_type')
   })
 
   it('rejects empty game_type', () => {
-    const errors = validateCreateRoomInput({ ...validInput, game_type: '' })
+    const errors = validateCreateRoomInput({ ...validInput, game_type: '' as GameType })
     expect(errors[0].field).toBe('game_type')
   })
 
@@ -77,7 +78,7 @@ describe('validateCreateRoomInput', () => {
 
   it('returns multiple errors when multiple fields are invalid', () => {
     const errors = validateCreateRoomInput({
-      game_type: 'chess',
+      game_type: 'chess' as GameType,
       max_players: 2,
       turn_timer_seconds: 5,
     })

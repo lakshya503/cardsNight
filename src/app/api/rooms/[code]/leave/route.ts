@@ -36,12 +36,24 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     )
   }
 
+  // Verify player is an active member of the room
+  const { data: player } = await admin
+    .from('room_players')
+    .select('id')
+    .eq('room_id', room.id)
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (!player) {
+    return NextResponse.json({ error: 'You are not in this room' }, { status: 422 })
+  }
+
   // Mark player as dropped
   const { error: dropError } = await admin
     .from('room_players')
     .update({ status: 'dropped' })
-    .eq('room_id', room.id)
-    .eq('user_id', user.id)
+    .eq('id', player.id)
 
   if (dropError) {
     console.error('[POST /api/rooms/[code]/leave] Drop error:', dropError)

@@ -298,7 +298,7 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
               </button>
               {!canStart && (
                 <p className="text-sm text-center" style={{ color: 'var(--color-text-muted)' }}>
-                  {copy.waitingRoom.startGameDisabled}
+                  {copy.waitingRoom.startGameDisabled(MIN_PLAYERS)}
                 </p>
               )}
             </div>

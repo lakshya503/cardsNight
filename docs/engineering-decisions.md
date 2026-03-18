@@ -8,11 +8,11 @@
 
 | Layer | Choice |
 |-------|--------|
-| Frontend | Next.js 14+ (App Router, TypeScript) |
+| Frontend | Next.js 16 (App Router, TypeScript) |
 | Styling | Tailwind CSS |
 | Auth | Supabase Auth (Google OAuth) |
 | Database | Supabase (Postgres) |
-| Real-time | Supabase Realtime (Broadcast channels) |
+| Real-time | Supabase Realtime (Postgres Changes) |
 | Game logic | Next.js API Routes (server-side validation) |
 | Hosting | Vercel (frontend) + Supabase (backend/DB) |
 | Testing | Vitest + React Testing Library + Playwright |
@@ -36,7 +36,7 @@
 
 - **Auth:** Google Sign-In via Supabase Auth. Zero implementation cost; handles token management, session refresh, and user table creation automatically.
 - **Database:** Postgres. Relational model is the right fit for game history, per-round scores, and structured room/player relationships.
-- **Real-time:** Supabase Realtime Broadcast channels. Game state lives in Postgres; mutations flow through API routes; Realtime pushes diffs to all connected clients. This is appropriate for a turn-based game — we don't need sub-100ms latency.
+- **Real-time:** Supabase Realtime Postgres Changes. Every game state mutation is a DB write; Postgres Changes delivers CDC events to all connected clients. Appropriate for a turn-based game — sub-100ms latency is not required. Broadcast channels are reserved for M3 ephemeral events (turn timer ticks, disconnection toasts).
 
 **Free tier limits to be aware of:**
 - 500 MB database storage
@@ -105,7 +105,7 @@ Included from day one. No architectural impact.
 │                    Supabase                          │
 │  ┌──────────────┐  ┌──────────┐  ┌───────────────┐  │
 │  │  Auth        │  │ Postgres │  │ Realtime      │  │
-│  │  Google OAuth│  │ Game DB  │  │ Broadcast     │  │
+│  │  Google OAuth│  │ Game DB  │  │ Postgres Changes│
 │  └──────────────┘  └──────────┘  └───────────────┘  │
 └─────────────────────────────────────────────────────┘
 ```
@@ -143,6 +143,10 @@ npm run test:e2e     # Playwright end-to-end tests
 
 ### Environment variables
 Never commit `.env.local`. Required variables:
+```
+NEXT_PUBLIC_SUPABASE_URL=       # Supabase project URL (safe to expose)
+NEXT_PUBLIC_SUPABASE_ANON_KEY=  # Supabase anon key (safe to expose)
+SUPABASE_SERVICE_ROLE_KEY=      # Service role key — server-side only, never expose to client
 ```
 
 
