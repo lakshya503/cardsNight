@@ -53,6 +53,27 @@ M2 goal: 4+ friends play a complete game of Judgement with correct rules, scorin
 
 ---
 
+## [Pre-M3 Hardening] — 2026-03-18
+
+### Fixed
+- `RoundStatus` type corrected from `'finished'` to `'complete'` — was mismatched against runtime DB writes
+- `hand/route.ts`: removed dead `'scoring'` status from round filter (never written anywhere)
+- `bid/route.ts`: bid amount validation strengthened to require non-negative integer (was typeof-only); fire-and-forget advance-turn DB write now returns 500 on error
+- `play/route.ts`: added enum validation for `suit` and `value` inputs; all 8 fire-and-forget DB writes now checked and return 500 on failure
+- `gameRules.ts`: `drawTrump` now throws on empty deck instead of crashing with `undefined.suit`
+- `WaitingRoom.tsx` / `page.tsx`: extracted `ProfileJoin` named type to replace repeated inline `as unknown as` double-casts
+
+### Added
+- Unit tests for `GET /api/games/[gameId]/hand` (6 tests)
+- Unit tests for `POST /api/rooms/[code]/leave` (6 tests)
+- Unit tests for `getPlayerHand` in `src/lib/game/server.ts` (4 tests)
+- Total unit test count: 138 (up from 122)
+
+### Chore
+- Closed stale GitHub issues #19–#36 (all M2 implementation slices complete)
+
+---
+
 ## [M1] — Foundation — 2026-03-17
 
 M1 goal: friends can sign in, create or join a room, and see each other in the waiting room in real time.

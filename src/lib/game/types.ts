@@ -17,7 +17,7 @@ export type RoomPlayerStatus = 'active' | 'disconnected' | 'dropped'
 export type GameStatus = 'in_progress' | 'finished'
 
 // Round
-export type RoundStatus = 'bidding' | 'playing' | 'finished'
+export type RoundStatus = 'bidding' | 'playing' | 'complete'
 
 // Game result
 export type GameResult = 'win' | 'loss' | 'tie'

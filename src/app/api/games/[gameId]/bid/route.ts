@@ -23,7 +23,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
     const body = await request.json()
     amount = body.amount
-    if (typeof amount !== 'number') throw new Error()
+    if (!Number.isInteger(amount) || amount < 0) throw new Error()
   } catch {
     return NextResponse.json({ error: 'amount must be a number' }, { status: 400 })
   }
@@ -141,10 +141,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   const currentIndex = players.findIndex((p) => p.user_id === user.id)
   const nextPlayerId = players[(currentIndex + 1) % players.length].user_id
 
-  await admin
+  const { error: advanceError } = await admin
     .from('rounds')
     .update({ current_player_id: nextPlayerId })
     .eq('id', round.id)
+
+  if (advanceError) {
+    console.error('[bid] Advance turn error:', advanceError)
+    return NextResponse.json({ error: 'Failed to advance turn' }, { status: 500 })
+  }
 
   return NextResponse.json({ status: 'bidding' }, { status: 200 })
 }

@@ -9,6 +9,8 @@ import { copy } from '@/lib/ui/copy'
 import { signOut } from '@/app/auth/actions'
 import { MIN_PLAYERS } from '@/lib/game/validation'
 
+type ProfileJoin = { display_name: string; avatar_url: string | null } | null
+
 type Player = {
   userId: string
   status: string
@@ -70,8 +72,8 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
           userId: p.user_id,
           status: p.status,
           joinedAt: p.joined_at,
-          displayName: (p.profiles as unknown as { display_name: string; avatar_url: string | null } | null)?.display_name ?? 'Player',
-          avatarUrl: (p.profiles as unknown as { display_name: string; avatar_url: string | null } | null)?.avatar_url ?? null,
+          displayName: (p.profiles as unknown as ProfileJoin)?.display_name ?? 'Player',
+          avatarUrl: (p.profiles as unknown as ProfileJoin)?.avatar_url ?? null,
         }))
       )
     }

@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import WaitingRoom from './WaitingRoom'
 
+type ProfileJoin = { display_name: string; avatar_url: string | null } | null
+
 interface PageProps {
   params: Promise<{ code: string }>
 }
@@ -107,8 +109,8 @@ export default async function RoomPage({ params }: PageProps) {
         userId: p.user_id,
         status: p.status,
         joinedAt: p.joined_at,
-        displayName: (p.profiles as unknown as { display_name: string; avatar_url: string | null } | null)?.display_name ?? 'Player',
-        avatarUrl: (p.profiles as unknown as { display_name: string; avatar_url: string | null } | null)?.avatar_url ?? null,
+        displayName: (p.profiles as unknown as ProfileJoin)?.display_name ?? 'Player',
+        avatarUrl: (p.profiles as unknown as ProfileJoin)?.avatar_url ?? null,
       }))}
       currentUserId={user.id}
     />

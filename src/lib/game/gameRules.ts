@@ -70,6 +70,7 @@ export function dealHands(
 
 // The trump card is the first card of the remaining deck after dealing.
 export function drawTrump(deck: Card[]): { trumpCard: Card; trumpSuit: Suit; remaining: Card[] } {
+  if (deck.length === 0) throw new Error('drawTrump: deck is empty')
   const trumpCard = deck[0]
   return { trumpCard, trumpSuit: trumpCard.suit, remaining: deck.slice(1) }
 }
