@@ -31,6 +31,9 @@ M2 goal: 4+ friends play a complete game of Judgement with correct rules, scorin
 ### Configuration
 - `playwright.config.ts` loads `.env.local` via dotenv so Supabase keys are available in test env
 
+### Chore
+- Upgraded Node.js from 20.16.0 to 20.20.1 via `brew install node@20` (unit tests require 20.19+)
+
 ### Refactored (post-M2 cleanup)
 - `leave/route.ts`: switched room DB query to admin client (consistent with M2 pattern)
 - `Scoreboard.tsx`: removed `currentTricksWon` field that was never populated (always showed "0/N tricks"); replaced with "bid N" display; tricks-won tracking deferred to M3
