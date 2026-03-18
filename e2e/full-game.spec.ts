@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { createTestUser, deleteTestUser, signIn, type TestUser } from './helpers/auth'
-import { createRoom, joinRoom, startGame, placeBid, playCard, playFullGame, getCurrentRound, getHand } from './helpers/game'
+import { createRoom, joinRoom, startGame, placeBid, playCard, playFullGame, getCurrentRound, getHandDirect } from './helpers/game'
 import { createClient } from '@supabase/supabase-js'
 
 function adminClient() {
@@ -86,14 +86,15 @@ test.describe('Full game lifecycle', () => {
       }
 
       // Play all 10 tricks of round 1
-      let leaderId = (await getCurrentRound(gameId))!.current_player_id!
+      const playingRound1 = (await getCurrentRound(gameId))!
+      let leaderId = playingRound1.current_player_id!
 
       for (let t = 0; t < 10; t++) {
         let leadSuit: string | null = null
         for (let c = 0; c < playerIds.length; c++) {
           const leaderIdx = playerIds.indexOf(leaderId)
           const currentId = playerIds[(leaderIdx + c) % playerIds.length]
-          const hand = await getHand(pages[currentId], gameId)
+          const hand = await getHandDirect(currentId, playingRound1.id)
           let card = hand[0]
           if (leadSuit) {
             const match = hand.find((h) => h.suit === leadSuit)
