@@ -55,11 +55,11 @@ Always consult these documents before making product or engineering decisions:
 
 | Document | Path | Contains |
 |----------|------|----------|
-| Product PRD | `docs/CardGames_Product_PRD.docx` | Authoritative source for product requirements, game rules, UX rules, milestones, and scope |
+| Product PRD | `docs/CardGames_Product_PRD.md` | Authoritative source for product requirements, game rules, UX rules, milestones, and scope |
 | Engineering Decisions | `docs/engineering-decisions.md` | Tech stack, architecture, rationale, data model, disconnection handling, and deferred decisions |
 | M2 Design Spec | `docs/superpowers/specs/2026-03-17-m2-judgement-game-design.md` | Authoritative M2 architecture: state machine, API surface, game rules module, UI structure, testing slices |
 
-**Conflict resolution:** PRD takes precedence on product behavior; engineering decisions doc takes precedence on implementation approach; design spec takes precedence on M2 implementation details. Note: the `.docx` PRD cannot be edited with code tools — CLAUDE.md is the authoritative source for any rules that diverge from it.
+**Conflict resolution:** PRD takes precedence on product behavior; engineering decisions doc takes precedence on implementation approach; design spec takes precedence on M2 implementation details.
 
 ## Product Vision
 
