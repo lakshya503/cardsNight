@@ -35,12 +35,28 @@ export default async function RoomPage({ params }: PageProps) {
   // Auto-join: check membership via admin client (bypasses RLS)
   const { data: membership } = await admin
     .from('room_players')
-    .select('id')
+    .select('id, status')
     .eq('room_id', room.id)
     .eq('user_id', user.id)
     .maybeSingle()
 
-  if (!membership) {
+  if (membership?.status === 'dropped') {
+    // Player previously left — re-activate them if the game hasn't started
+    if (room.status === 'in_progress') redirect('/?toast=room_in_progress')
+
+    const { count } = await admin
+      .from('room_players')
+      .select('id', { count: 'exact', head: true })
+      .eq('room_id', room.id)
+      .neq('status', 'dropped')
+
+    if ((count ?? 0) >= room.max_players) redirect('/?toast=room_full')
+
+    await admin
+      .from('room_players')
+      .update({ status: 'active' })
+      .eq('id', membership.id)
+  } else if (!membership) {
     if (room.status === 'in_progress') redirect('/?toast=room_in_progress')
 
     // Check capacity
@@ -75,13 +91,6 @@ export default async function RoomPage({ params }: PageProps) {
     .eq('room_id', room.id)
     .neq('status', 'dropped')
     .order('joined_at', { ascending: true })
-
-  // Fetch host profile
-  const { data: hostProfile } = await admin
-    .from('profiles')
-    .select('display_name, avatar_url')
-    .eq('id', room.host_id)
-    .single()
 
   return (
     <WaitingRoom

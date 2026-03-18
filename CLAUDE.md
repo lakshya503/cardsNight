@@ -96,20 +96,54 @@ Trick-taking card game, 4–10 players, one standard 52-card deck.
 | M4 | Public rooms, lobby, leaderboard | Stranger can join a public game without an invite and see the leaderboard |
 | M5 | Second card game added | Two games playable; adding a third requires no changes to shared platform code |
 
-## Architecture Needs
+## Tech Stack
 
-The tech stack has not been chosen yet. Key requirements to drive those decisions:
-
-- **Real-time multiplayer** — all players see game state instantly (WebSockets or equivalent, e.g. Socket.io, Supabase Realtime, Partykit)
-- **Authentication** — Google Sign-In (OAuth 2.0)
-- **Private rooms** — unique invite link + room code generation
-- **Persistence** — player profiles, game history, per-round scores
-- **Responsive** — must work on both mobile and desktop browsers
+- **Framework:** Next.js 16 (App Router, TypeScript)
+- **Auth + DB + Realtime:** Supabase (Google OAuth, Postgres, Postgres Changes)
+- **Styling:** Tailwind CSS v4 with `@theme` design tokens
+- **Fonts:** Fraunces (display) + DM Sans (body) via next/font/google
+- **PWA:** @ducanh2912/next-pwa
+- **Unit tests:** Vitest + React Testing Library
+- **E2E tests:** Playwright
 
 ## Development Setup
 
-No build system set up yet. Update this section once a stack is chosen with:
-- Install dependencies
-- Run dev server
-- Run tests (including how to run a single test)
-- Build for production
+```bash
+# Install dependencies
+npm install
+
+# Run dev server (requires .env.local with Supabase keys)
+npm run dev
+
+# Unit tests (requires Node 20.19+)
+npm test
+npm test -- --reporter=verbose          # verbose output
+npm test -- src/lib/game/roomCode       # single file
+
+# E2E tests (dev server must be running or Playwright starts it)
+npm run test:e2e
+npx playwright test e2e/auth.spec.ts    # single file
+
+# Type check
+npx tsc --noEmit
+
+# Build for production
+npm run build
+```
+
+## Environment Variables
+
+Required in `.env.local`:
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+## Supabase Type Generation
+
+After any schema change, regenerate types:
+```bash
+npx supabase gen types typescript --project-id <your-project-id> > src/lib/supabase/database.types.ts
+```
+Project ID is in your Supabase dashboard URL: `supabase.com/dashboard/project/<id>`
