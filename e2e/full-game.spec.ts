@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { createTestUser, deleteTestUser, signIn, type TestUser } from './helpers/auth'
-import { createRoom, joinRoom, startGame, placeBid, playCard, playFullGame, getCurrentRound, getHand } from './helpers/game'
+import { createRoom, joinRoom, startGame, placeBid, playCard, playFullGame, getCurrentRound, getHandDirect } from './helpers/game'
 import { createClient } from '@supabase/supabase-js'
 
 function adminClient() {
@@ -49,8 +49,13 @@ test.afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 test.describe('Full game lifecycle', () => {
+  // These two tests share full-host / full-guest users. Running them in parallel
+  // causes concurrent signIns for the same user, which can invalidate each other's
+  // sessions on Supabase's free tier. Serial mode prevents that race.
+  test.describe.configure({ mode: 'serial' })
+
   test('round 1 completes: round_scores inserted and round 2 starts in bidding', async ({ browser }) => {
-    test.setTimeout(60_000)
+    test.setTimeout(120_000) // 2 min — ~57 API calls at ~500ms–1s each
     const hostCtx = await browser.newContext()
     const guestCtx = await browser.newContext()
     const hostPage = await hostCtx.newPage()
@@ -81,14 +86,15 @@ test.describe('Full game lifecycle', () => {
       }
 
       // Play all 10 tricks of round 1
-      let leaderId = (await getCurrentRound(gameId))!.current_player_id!
+      const playingRound1 = (await getCurrentRound(gameId))!
+      let leaderId = playingRound1.current_player_id!
 
       for (let t = 0; t < 10; t++) {
         let leadSuit: string | null = null
         for (let c = 0; c < playerIds.length; c++) {
           const leaderIdx = playerIds.indexOf(leaderId)
           const currentId = playerIds[(leaderIdx + c) % playerIds.length]
-          const hand = await getHand(pages[currentId], gameId)
+          const hand = await getHandDirect(currentId, playingRound1.id)
           let card = hand[0]
           if (leadSuit) {
             const match = hand.find((h) => h.suit === leadSuit)
@@ -141,7 +147,7 @@ test.describe('Full game lifecycle', () => {
   })
 
   test('full game completes: game_results inserted and results page renders', async ({ browser }) => {
-    test.setTimeout(180_000) // 3 min — full 10-round game
+    test.setTimeout(300_000) // 5 min — full 10-round game (~250 API calls at ~500ms each)
 
     const hostCtx = await browser.newContext()
     const guestCtx = await browser.newContext()

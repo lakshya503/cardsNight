@@ -58,6 +58,46 @@ export async function placeBid(page: Page, gameId: string, amount: number): Prom
 }
 
 /**
+ * Returns the player's remaining cards for the current round directly from the DB.
+ * Replicates getPlayerHand (dealt minus played) without going through the HTTP API.
+ * Uses the admin client — avoids auth overhead in tight loops (e.g. playFullGame).
+ */
+export async function getHandDirect(
+  userId: string,
+  roundId: string,
+): Promise<Array<{ suit: string; value: string }>> {
+  const admin = adminClient()
+
+  const { data: handRow } = await admin
+    .from('hands')
+    .select('cards')
+    .eq('round_id', roundId)
+    .eq('player_id', userId)
+    .maybeSingle()
+
+  if (!handRow) return []
+
+  const { data: roundTricks } = await admin
+    .from('tricks')
+    .select('id')
+    .eq('round_id', roundId)
+
+  const trickIds = (roundTricks ?? []).map((t: { id: string }) => t.id)
+  if (trickIds.length === 0) return handRow.cards as Array<{ suit: string; value: string }>
+
+  const { data: played } = await admin
+    .from('trick_cards')
+    .select('suit, value')
+    .eq('player_id', userId)
+    .in('trick_id', trickIds)
+
+  const playedSet = new Set((played ?? []).map((c: { suit: string; value: string }) => `${c.suit}:${c.value}`))
+  return (handRow.cards as Array<{ suit: string; value: string }>).filter(
+    (c) => !playedSet.has(`${c.suit}:${c.value}`),
+  )
+}
+
+/**
  * Returns the current (latest) round for a game, or null.
  */
 export async function getCurrentRound(gameId: string) {
@@ -80,13 +120,14 @@ export async function getHand(
   gameId: string,
 ): Promise<Array<{ suit: string; value: string }>> {
   const res = await page.request.get(`/api/games/${gameId}/hand`)
-  if (!res.ok()) return []
+  if (!res.ok()) throw new Error(`getHand failed (${res.status()}): ${await res.text()}`)
   const { cards } = await res.json()
   return cards as Array<{ suit: string; value: string }>
 }
 
 /**
  * Plays a card via the API. The page must be authenticated as the current player.
+ * Retries once on 500 to handle transient Supabase connection drops.
  */
 export async function playCard(
   page: Page,
@@ -94,11 +135,18 @@ export async function playCard(
   suit: string,
   value: string,
 ): Promise<{ status: string; winnerId?: string }> {
-  const res = await page.request.post(`/api/games/${gameId}/play`, { data: { suit, value } })
-  if (!res.ok()) {
-    throw new Error(`playCard failed (${res.status()}): ${await res.text()}`)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await page.request.post(`/api/games/${gameId}/play`, { data: { suit, value } })
+    if (res.ok()) return res.json()
+    const body = await res.text()
+    if (res.status() !== 500 || attempt === 1) {
+      throw new Error(`playCard failed (${res.status()}): ${body}`)
+    }
+    // 500 on first attempt — wait briefly and retry
+    await new Promise((r) => setTimeout(r, 2000))
   }
-  return res.json()
+  // unreachable
+  throw new Error('playCard: unexpected loop exit')
 }
 
 /**
@@ -140,7 +188,7 @@ export async function playFullGame(
         const leaderIdx = playerIds.indexOf(leaderId)
         const currentPlayerId = playerIds[(leaderIdx + cardIdx) % playerIds.length]
 
-        const hand = await getHand(pages[currentPlayerId], gameId)
+        const hand = await getHandDirect(currentPlayerId, playingRound.id)
 
         // Follow suit if required, otherwise play first card
         let card = hand[0]
