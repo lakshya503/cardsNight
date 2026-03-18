@@ -73,7 +73,9 @@ export const config = {
      * - _next/image (image optimisation)
      * - favicon.ico
      * - public folder assets
+     * - /api routes (API routes do their own explicit auth; running getUser() in
+     *   middleware here as well doubles Supabase Auth calls and risks rate limiting)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
