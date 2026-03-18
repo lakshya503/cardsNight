@@ -31,6 +31,16 @@ M2 goal: 4+ friends play a complete game of Judgement with correct rules, scorin
 ### Configuration
 - `playwright.config.ts` loads `.env.local` via dotenv so Supabase keys are available in test env
 
+### Fixed (post-M2 E2E stability)
+- Middleware excluded from `/api` routes — was calling `getUser()` on every API request, doubling Supabase Auth calls and hitting free-tier rate limits under E2E load
+- `POST /api/rooms/[code]/join` switched all DB queries to admin client — self-referential RLS policy on `room_players` caused 500 errors for guests not yet in a room
+- Full-game E2E tests now run serially (shared `full-host`/`full-guest` users were getting sessions invalidated by concurrent signIns)
+- `getHand` helper now throws on non-2xx instead of silently returning `[]` (was masking auth errors as undefined-card crashes)
+- `playCard` helper retries once on 500 for transient Supabase TLS drops (`UND_ERR_SOCKET`)
+- `playFullGame` uses direct admin DB reads for hand state instead of 110 auth-checked HTTP calls, cutting full-game test time from 5+ min to ~2 min
+- Fixed email format for test users (`test-{label}@cardsnight.test`) with upsert fallback to avoid Supabase Auth burst rate limits across parallel workers
+- Local E2E workers reduced from 4 to 2
+
 ---
 
 ## [M1] — Foundation — 2026-03-17
