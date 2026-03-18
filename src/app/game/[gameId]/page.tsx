@@ -67,6 +67,24 @@ export default async function GamePage({ params }: PageProps) {
   // Fetch player's hand for the current round
   const hand = round ? await getPlayerHand(admin, round.id, user.id) : []
 
+  // Compute cumulative scores from all completed round_scores for this game
+  const { data: allRoundIds } = await admin
+    .from('rounds')
+    .select('id')
+    .eq('game_id', gameId)
+
+  const roundIds = (allRoundIds ?? []).map((r) => r.id)
+  const cumulativeScores: Record<string, number> = {}
+  if (roundIds.length > 0) {
+    const { data: allScores } = await admin
+      .from('round_scores')
+      .select('player_id, score')
+      .in('round_id', roundIds)
+    for (const rs of allScores ?? []) {
+      cumulativeScores[rs.player_id] = (cumulativeScores[rs.player_id] ?? 0) + rs.score
+    }
+  }
+
   // Fetch current trick (latest without a winner) and its cards
   let currentTrick: { id: string; trick_number: number; led_suit: string | null; winner_id: string | null } | null = null
   let trickCards: Array<{ playerId: string; displayName: string; suit: string; value: string }> = []
@@ -105,6 +123,7 @@ export default async function GamePage({ params }: PageProps) {
       initialHand={hand}
       initialCurrentTrick={currentTrick}
       initialTrickCards={trickCards}
+      initialCumulativeScores={cumulativeScores}
       players={playerList}
     />
   )
