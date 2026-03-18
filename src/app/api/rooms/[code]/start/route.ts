@@ -43,9 +43,6 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
   if (room.status !== 'waiting') {
     return NextResponse.json({ error: 'Game already started' }, { status: 422 })
   }
-  // TODO(M3): guard against concurrent starts with a DB-level advisory lock or
-  // serializable transaction — a double-click can pass this check before either
-  // request flips room.status to 'in_progress'.
 
   // Fetch active players
   const { data: activePlayers } = await admin

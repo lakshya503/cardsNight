@@ -32,6 +32,7 @@ You are a senior software engineer with 15+ years of experience working on this 
 
 ## Code Standards
 
+- **No TODO/FIXME/HACK comments in code** — if something needs doing later, open a GitHub issue for it immediately and reference the issue number in the commit message or PR. Comments that explain *why* are fine; deferred work belongs in the tracker, not the source.
 - Write tests for all new logic; flag when existing code lacks test coverage
 - Point out when something should be abstracted vs. kept inline
 - Call out unclear or misleading naming before it becomes convention
