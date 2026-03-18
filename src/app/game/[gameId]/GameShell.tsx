@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { BiddingPanel } from './BiddingPanel'
 import { TrickPanel } from './TrickPanel'
+import { Scoreboard } from './Scoreboard'
 import type { Card, Suit, CardValue } from '@/lib/game/types'
 
 interface Player {
@@ -14,6 +16,7 @@ interface Player {
 
 interface Round {
   id: string
+  round_id?: string
   round_number: number
   hand_size: number
   trump_suit: string
@@ -42,6 +45,11 @@ interface Trick {
   winner_id: string | null
 }
 
+interface RoundScore {
+  player_id: string
+  score: number
+}
+
 interface Props {
   gameId: string
   userId: string
@@ -50,6 +58,7 @@ interface Props {
   initialHand: Card[]
   initialCurrentTrick: Trick | null
   initialTrickCards: TrickCardDisplay[]
+  initialCumulativeScores: Record<string, number>
   players: Player[]
 }
 
@@ -61,13 +70,17 @@ export function GameShell({
   initialHand,
   initialCurrentTrick,
   initialTrickCards,
+  initialCumulativeScores,
   players,
 }: Props) {
+  const router = useRouter()
+
   const [round, setRound] = useState<Round | null>(initialRound)
   const [bids, setBids] = useState<Bid[]>(initialBids)
   const [hand, setHand] = useState<Card[]>(initialHand)
   const [currentTrick, setCurrentTrick] = useState<Trick | null>(initialCurrentTrick)
   const [trickCards, setTrickCards] = useState<TrickCardDisplay[]>(initialTrickCards)
+  const [cumulativeScores, setCumulativeScores] = useState<Record<string, number>>(initialCumulativeScores)
 
   const roundRef = useRef<Round | null>(initialRound)
   const currentTrickRef = useRef<Trick | null>(initialCurrentTrick)
@@ -82,22 +95,42 @@ export function GameShell({
 
     const channel = supabase
       .channel(`game:${gameId}`)
-      // Round updates: status changes, current_player_id advances
+      // Game UPDATE: navigate to results when game finishes
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameId}` },
+        (payload) => {
+          if ((payload.new as { status: string }).status === 'finished') {
+            router.push(`/game/${gameId}/results`)
+          }
+        }
+      )
+      // Round UPDATE: status + turn changes; new round resets local state
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` },
         (payload) => {
           const updated = payload.new as Round
           if (updated.id !== roundRef.current?.id) {
-            // New round started — clear bid and trick state
+            // New round — fetch fresh hand from server since we can't derive it client-side
             setBids([])
             setTrickCards([])
             setCurrentTrick(null)
+            setHand([]) // page will reload on navigation; handled by round INSERT subscription
           }
           setRound(updated)
         }
       )
-      // Bids: new bid placed
+      // New round INSERT: page refresh pulls the new round's hand server-side.
+      // We trigger a router refresh so Next.js re-runs the server component.
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` },
+        () => {
+          router.refresh()
+        }
+      )
+      // Bids INSERT
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'bids' },
@@ -109,7 +142,7 @@ export function GameShell({
           )
         }
       )
-      // Tricks INSERT: a new trick has started
+      // Tricks INSERT: new trick started
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'tricks' },
@@ -120,7 +153,7 @@ export function GameShell({
           setTrickCards([])
         }
       )
-      // Tricks UPDATE: trick completed (winner set) or led_suit set
+      // Tricks UPDATE: led_suit set or winner determined
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'tricks' },
@@ -131,7 +164,7 @@ export function GameShell({
           }
         }
       )
-      // trick_cards INSERT: a card was played in the current trick
+      // trick_cards INSERT: a card was played
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'trick_cards' },
@@ -146,17 +179,27 @@ export function GameShell({
           )
         }
       )
+      // round_scores INSERT: a round has been scored — update cumulative totals
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'round_scores' },
+        (payload) => {
+          const rs = payload.new as RoundScore
+          setCumulativeScores((prev) => ({
+            ...prev,
+            [rs.player_id]: (prev[rs.player_id] ?? 0) + rs.score,
+          }))
+        }
+      )
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [gameId, playerMap]) // playerMap is stable (computed from props that never change)
+  }, [gameId, playerMap, router])
 
   function handleCardPlayed(card: Card) {
-    // Optimistically remove the card from hand
     setHand((prev) => prev.filter((c) => !(c.suit === card.suit && c.value === card.value)))
-    // Optimistically add to trickCards
     setTrickCards((prev) =>
       prev.some((c) => c.playerId === userId)
         ? prev
@@ -178,6 +221,13 @@ export function GameShell({
     ? (playerMap[round.current_player_id]?.displayName ?? 'Unknown')
     : null
 
+  const scoreboardData = players.map((p) => ({
+    userId: p.userId,
+    displayName: p.displayName,
+    total: cumulativeScores[p.userId] ?? 0,
+    currentBid: bids.find((b) => b.player_id === p.userId)?.amount,
+  }))
+
   return (
     <main className="min-h-screen bg-slate-900 text-white p-6">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -190,6 +240,8 @@ export function GameShell({
             </div>
           )}
         </div>
+
+        <Scoreboard scores={scoreboardData} currentRoundNumber={round?.round_number ?? 1} />
 
         {isBidding && (
           <div data-testid="bidding-panel">
@@ -232,9 +284,9 @@ export function GameShell({
           </div>
         )}
 
-        {round?.status === 'scoring' && (
-          <div data-testid="scoring-phase" className="p-4 bg-slate-800 rounded-lg text-slate-300">
-            Round complete — scoring in progress…
+        {round?.status === 'complete' && (
+          <div data-testid="round-complete" className="p-4 bg-slate-800 rounded-lg text-slate-300 text-center">
+            Round complete — starting next round…
           </div>
         )}
       </div>

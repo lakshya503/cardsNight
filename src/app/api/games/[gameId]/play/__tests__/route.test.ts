@@ -59,6 +59,9 @@ function makeAdminMock({
   existingTrickCards = DEFAULT_EXISTING_TRICK_CARDS,
   trickCardInsertError = null as unknown,
   tricksUpdateError = null as unknown,
+  // Scoring-path additions (only reached when last card of last trick)
+  roundBids = [] as Array<{ player_id: string; amount: number }>,
+  completedTricks = [] as Array<{ winner_id: string | null }>,
 } = {}) {
   // games
   const gameMaybeSingle = vi.fn().mockResolvedValue({ data: game })
@@ -94,23 +97,34 @@ function makeAdminMock({
   const roundUpdateEq = vi.fn().mockResolvedValue({ error: null })
   const roundUpdate = vi.fn().mockReturnValue({ eq: roundUpdateEq })
 
-  // tricks SELECT (all tricks for round)
+  // rounds INSERT (for next round after scoring)
+  const roundInsertSingle = vi.fn().mockResolvedValue({ data: { id: 'next-round-id' }, error: null })
+  const roundInsertSelect = vi.fn().mockReturnValue({ single: roundInsertSingle })
+  const roundInsert = vi.fn().mockReturnValue({ select: roundInsertSelect })
+
+  // tricks SELECT call 0: all tricks for round (.select().eq().order())
   const tricksSelectOrder = vi.fn().mockResolvedValue({ data: allTricks })
   const tricksSelectEq = vi.fn().mockReturnValue({ order: tricksSelectOrder })
-  const tricksSelectSelect = vi.fn().mockReturnValue({ eq: tricksSelectEq })
+  const tricksAllSelect = vi.fn().mockReturnValue({ eq: tricksSelectEq })
 
-  // tricks UPDATE (led_suit and winner_id)
+  // tricks SELECT call 1 (scoring): completed tricks (.select().eq().not())
+  const tricksCompletedNot = vi.fn().mockResolvedValue({ data: completedTricks })
+  const tricksCompletedEq = vi.fn().mockReturnValue({ not: tricksCompletedNot })
+  const tricksCompletedSelect = vi.fn().mockReturnValue({ eq: tricksCompletedEq })
+
+  // tricks UPDATE (led_suit / winner_id) and INSERT (next trick)
   const tricksUpdateEq = vi.fn().mockResolvedValue({ error: tricksUpdateError })
   const tricksUpdate = vi.fn().mockReturnValue({ eq: tricksUpdateEq })
-
-  // tricks INSERT (next trick)
   const tricksInsert = vi.fn().mockResolvedValue({ error: null })
 
-  // hands
+  // hands SELECT
   const handsMaybeSingle = vi.fn().mockResolvedValue({ data: handRow })
   const handsEq2 = vi.fn().mockReturnValue({ maybeSingle: handsMaybeSingle })
   const handsEq1 = vi.fn().mockReturnValue({ eq: handsEq2 })
   const handsSelect = vi.fn().mockReturnValue({ eq: handsEq1 })
+
+  // hands INSERT (for next round)
+  const handsInsert = vi.fn().mockResolvedValue({ error: null })
 
   // trick_cards SELECT played by player: .select().eq('player_id').in('trick_id')
   const tcPlayedIn = vi.fn().mockResolvedValue({ data: playedByPlayer })
@@ -124,6 +138,13 @@ function makeAdminMock({
   // trick_cards INSERT
   const tcInsert = vi.fn().mockResolvedValue({ error: trickCardInsertError })
 
+  // bids SELECT (scoring path): .select().eq()
+  const bidsSelectEq = vi.fn().mockResolvedValue({ data: roundBids })
+  const bidsSelect = vi.fn().mockReturnValue({ eq: bidsSelectEq })
+
+  // round_scores INSERT (scoring path)
+  const rsInsert = vi.fn().mockResolvedValue({ error: null })
+
   let rpCallCount = 0
   let tcSelectCallCount = 0
   let tricksCallCount = 0
@@ -136,19 +157,22 @@ function makeAdminMock({
       if (idx === 1) return { select: rpListSelect }
       return { update: rpUpdate }
     }
-    if (table === 'rounds') return { select: roundSelect, update: roundUpdate }
+    if (table === 'rounds') return { select: roundSelect, update: roundUpdate, insert: roundInsert }
     if (table === 'tricks') {
       const idx = tricksCallCount++
-      if (idx === 0) return { select: tricksSelectSelect, update: tricksUpdate, insert: tricksInsert }
-      return { update: tricksUpdate, insert: tricksInsert }
+      if (idx === 0) return { select: tricksAllSelect, update: tricksUpdate, insert: tricksInsert }
+      if (idx === 1) return { select: tricksCompletedSelect, update: tricksUpdate, insert: tricksInsert }
+      return { select: tricksCompletedSelect, update: tricksUpdate, insert: tricksInsert }
     }
-    if (table === 'hands') return { select: handsSelect }
+    if (table === 'hands') return { select: handsSelect, insert: handsInsert }
     if (table === 'trick_cards') {
       const idx = tcSelectCallCount++
       if (idx === 0) return { select: tcPlayedSelect }
       if (idx === 1) return { select: tcExistingSelect }
       return { insert: tcInsert } // idx 2: the INSERT
     }
+    if (table === 'bids') return { select: bidsSelect }
+    if (table === 'round_scores') return { insert: rsInsert }
     throw new Error(`Unexpected table: ${table}`)
   })
 

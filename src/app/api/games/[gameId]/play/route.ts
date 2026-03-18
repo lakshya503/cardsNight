@@ -1,7 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse, type NextRequest } from 'next/server'
-import { validatePlay, getLeadSuit, getTrickWinner } from '@/lib/game/gameRules'
+import {
+  validatePlay, getLeadSuit, getTrickWinner,
+  dealHands, drawTrump, scoreRound, determinePlacements,
+  getStartingBidderIndex,
+} from '@/lib/game/gameRules'
 import { getPlayerHand } from '@/lib/game/server'
 import type { Card, Suit, CardValue, TrickCard } from '@/lib/game/types'
 
@@ -207,11 +211,140 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ status: 'trick_complete', winnerId }, { status: 200 })
   }
 
-  // All tricks done — Slice 5 handles scoring; mark round as scoring
+  // ── All tricks done — score this round ─────────────────────────────────────
+
+  // Tally bids
+  const { data: roundBids } = await admin
+    .from('bids')
+    .select('player_id, amount')
+    .eq('round_id', round.id)
+
+  const bidsRecord: Record<string, number> = Object.fromEntries(
+    (roundBids ?? []).map((b) => [b.player_id, b.amount])
+  )
+
+  // Tally tricks won (winner_id is now set on all tricks including the one just completed)
+  const { data: completedTricks } = await admin
+    .from('tricks')
+    .select('winner_id')
+    .eq('round_id', round.id)
+    .not('winner_id', 'is', null)
+
+  const tricksWonRecord: Record<string, number> = {}
+  for (const trick of completedTricks ?? []) {
+    if (trick.winner_id) {
+      tricksWonRecord[trick.winner_id] = (tricksWonRecord[trick.winner_id] ?? 0) + 1
+    }
+  }
+  // Ensure all players have an entry (0 tricks won is a valid outcome)
+  for (const p of players) {
+    if (!(p.user_id in tricksWonRecord)) tricksWonRecord[p.user_id] = 0
+  }
+
+  const roundScores = scoreRound(bidsRecord, tricksWonRecord)
+
+  // Insert round_scores
+  const { error: rsError } = await admin.from('round_scores').insert(
+    Object.entries(roundScores).map(([playerId, score]) => ({
+      round_id: round.id,
+      player_id: playerId,
+      score,
+      bid: bidsRecord[playerId] ?? 0,
+      tricks_won: tricksWonRecord[playerId] ?? 0,
+    }))
+  )
+
+  if (rsError) {
+    console.error('[play] round_scores insert error:', rsError)
+    return NextResponse.json({ error: 'Failed to record round scores' }, { status: 500 })
+  }
+
+  // Mark this round complete
   await admin
     .from('rounds')
-    .update({ status: 'scoring', current_player_id: null })
+    .update({ status: 'complete', current_player_id: null })
     .eq('id', round.id)
 
-  return NextResponse.json({ status: 'round_complete', winnerId }, { status: 200 })
+  // ── Start next round or end game ─────────────────────────────────────────
+
+  if (round.hand_size > 1) {
+    // Deal next round
+    const nextHandSize = round.hand_size - 1
+    const nextRoundNumber = round.round_number + 1
+    const playerIds = players.map((p) => p.user_id)
+    const nextBidderId = playerIds[getStartingBidderIndex(nextRoundNumber, players.length)]
+
+    const { hands, remaining } = dealHands(playerIds, nextHandSize)
+    const { trumpCard, trumpSuit } = drawTrump(remaining)
+
+    const { data: nextRound, error: nextRoundError } = await admin
+      .from('rounds')
+      .insert({
+        game_id: gameId,
+        round_number: nextRoundNumber,
+        hand_size: nextHandSize,
+        trump_suit: trumpSuit,
+        trump_card_value: trumpCard.value,
+        status: 'bidding',
+        current_player_id: nextBidderId,
+      })
+      .select('id')
+      .single()
+
+    if (nextRoundError || !nextRound) {
+      console.error('[play] next round insert error:', nextRoundError)
+      return NextResponse.json({ error: 'Failed to start next round' }, { status: 500 })
+    }
+
+    await admin.from('hands').insert(
+      playerIds.map((playerId) => ({
+        round_id: nextRound.id,
+        player_id: playerId,
+        cards: hands[playerId],
+      }))
+    )
+
+    return NextResponse.json({ status: 'round_complete', winnerId }, { status: 200 })
+  }
+
+  // ── Last round — end game ──────────────────────────────────────────────────
+
+  // Fetch all round scores for this game
+  const { data: allGameRoundIds } = await admin
+    .from('rounds')
+    .select('id')
+    .eq('game_id', gameId)
+
+  const allRoundIds = (allGameRoundIds ?? []).map((r) => r.id)
+
+  const { data: allRoundScores } = await admin
+    .from('round_scores')
+    .select('player_id, score')
+    .in('round_id', allRoundIds)
+
+  const totalScores: Record<string, number> = {}
+  for (const rs of allRoundScores ?? []) {
+    totalScores[rs.player_id] = (totalScores[rs.player_id] ?? 0) + rs.score
+  }
+
+  const placements = determinePlacements(totalScores)
+
+  const { error: grError } = await admin.from('game_results').insert(
+    placements.map((p) => ({
+      game_id: gameId,
+      player_id: p.playerId,
+      placement: p.placement,
+      result: p.result,
+      total_score: totalScores[p.playerId],
+    }))
+  )
+
+  if (grError) {
+    console.error('[play] game_results insert error:', grError)
+    return NextResponse.json({ error: 'Failed to record game results' }, { status: 500 })
+  }
+
+  await admin.from('games').update({ status: 'finished' }).eq('id', gameId)
+
+  return NextResponse.json({ status: 'game_complete', winnerId }, { status: 200 })
 }
