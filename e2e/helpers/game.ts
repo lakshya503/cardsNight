@@ -47,3 +47,19 @@ export async function placeBid(page: Page, gameId: string, amount: number): Prom
     throw new Error(`placeBid failed (${res.status()}): ${await res.text()}`)
   }
 }
+
+/**
+ * Plays a card via the API. The page must be authenticated as the current player.
+ */
+export async function playCard(
+  page: Page,
+  gameId: string,
+  suit: string,
+  value: string,
+): Promise<{ status: string; winnerId?: string }> {
+  const res = await page.request.post(`/api/games/${gameId}/play`, { data: { suit, value } })
+  if (!res.ok()) {
+    throw new Error(`playCard failed (${res.status()}): ${await res.text()}`)
+  }
+  return res.json()
+}
