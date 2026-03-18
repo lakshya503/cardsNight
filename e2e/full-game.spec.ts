@@ -55,7 +55,7 @@ test.describe('Full game lifecycle', () => {
   test.describe.configure({ mode: 'serial' })
 
   test('round 1 completes: round_scores inserted and round 2 starts in bidding', async ({ browser }) => {
-    test.setTimeout(60_000)
+    test.setTimeout(120_000) // 2 min — ~57 API calls at ~500ms–1s each
     const hostCtx = await browser.newContext()
     const guestCtx = await browser.newContext()
     const hostPage = await hostCtx.newPage()
