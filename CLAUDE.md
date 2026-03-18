@@ -59,7 +59,7 @@ Always consult these documents before making product or engineering decisions:
 | Engineering Decisions | `docs/engineering-decisions.md` | Tech stack, architecture, rationale, data model, disconnection handling, and deferred decisions |
 | M2 Design Spec | `docs/superpowers/specs/2026-03-17-m2-judgement-game-design.md` | Authoritative M2 architecture: state machine, API surface, game rules module, UI structure, testing slices |
 
-**Conflict resolution:** PRD takes precedence on product behavior; engineering decisions doc takes precedence on implementation approach; design spec takes precedence on M2 implementation details. Note: the PRD incorrectly states rounds go "down to 1 then back up" — the correct rule is **descending only** (confirmed 2026-03-17).
+**Conflict resolution:** PRD takes precedence on product behavior; engineering decisions doc takes precedence on implementation approach; design spec takes precedence on M2 implementation details. Note: the `.docx` PRD cannot be edited with code tools — CLAUDE.md is the authoritative source for any rules that diverge from it.
 
 ## Product Vision
 

@@ -22,7 +22,7 @@ Four or more friends can play a complete game of Judgement with correct rules, s
 | Realtime strategy | Postgres Changes only | Every meaningful event is a DB write; Broadcast not needed until M3 |
 | Turn timer | Deferred to M3 (issue #17) | Requires server-side scheduler; M2 done condition does not require it |
 | E2E testing | Slice-by-slice | Green suite at each slice; avoids large failing test throughout M2 |
-| Round structure | Descending only (start → 1 card, no climb back) | PRD was incorrect; confirmed by product owner 2026-03-17. CLAUDE.md and this spec are authoritative — the `.docx` PRD has not been updated |
+| Round structure | Descending only — hand size decreases from starting count down to 1, no climb back | Simpler, fairer; game ends at the 1-card round |
 | API cascade | Single `play` endpoint, server auto-advances | Fewer round trips; no race condition surface on round/game transitions |
 | Turn order | Randomized at game start; stored as `seat_order` integers (0-indexed, gapless) on `room_players`; starting bidder for round N = seat index `(round_number - 1) % playerCount` | Fair, deterministic, no extra state |
 | First trick leader each round | Same player who leads bidding that round — seat index `(round_number - 1) % playerCount` | Simple and consistent; no separate tracking needed |
