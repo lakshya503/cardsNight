@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { copy } from '@/lib/ui/copy'
 import { signOut } from '@/app/auth/actions'
+import { MIN_PLAYERS } from '@/lib/game/validation'
 
 type Player = {
   userId: string
@@ -107,7 +108,7 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
   }
 
   const activeCount = players.filter((p) => p.status !== 'dropped').length
-  const canStart = isHost && activeCount >= 4
+  const canStart = isHost && activeCount >= MIN_PLAYERS
 
   async function leaveRoom() {
     if (!window.confirm(copy.waitingRoom.leaveRoomConfirm)) return

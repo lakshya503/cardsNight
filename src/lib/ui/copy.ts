@@ -49,7 +49,7 @@ export const copy = {
     linkCopied:        'Link copied — send it!',
     roomCodeLabel:     'Room code',
     startGame:         'Start game',
-    startGameDisabled: 'Round up at least 4 friends first!',
+    startGameDisabled: 'Need at least 2 players to start!',
     waitingForHost:    "Hang tight — the host will start soon.",
     leaveRoom:         'Leave room',
     leaveRoomConfirm:  'Leave this room?',
