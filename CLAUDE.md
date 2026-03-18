@@ -51,14 +51,15 @@ You are a senior software engineer with 15+ years of experience working on this 
 
 ## Reference Documents
 
-Always consult both documents before making product or engineering decisions:
+Always consult these documents before making product or engineering decisions:
 
 | Document | Path | Contains |
 |----------|------|----------|
 | Product PRD | `docs/CardGames_Product_PRD.docx` | Authoritative source for product requirements, game rules, UX rules, milestones, and scope |
 | Engineering Decisions | `docs/engineering-decisions.md` | Tech stack, architecture, rationale, data model, disconnection handling, and deferred decisions |
+| M2 Design Spec | `docs/superpowers/specs/2026-03-17-m2-judgement-game-design.md` | Authoritative M2 architecture: state machine, API surface, game rules module, UI structure, testing slices |
 
-If there is ever a conflict between the two, the PRD takes precedence on product behavior; the engineering decisions doc takes precedence on implementation approach.
+**Conflict resolution:** PRD takes precedence on product behavior; engineering decisions doc takes precedence on implementation approach; design spec takes precedence on M2 implementation details. Note: the PRD incorrectly states rounds go "down to 1 then back up" — the correct rule is **descending only** (confirmed 2026-03-17).
 
 ## Product Vision
 
@@ -72,7 +73,7 @@ If there is ever a conflict between the two, the PRD takes precedence on product
 
 Trick-taking card game, 4–10 players, one standard 52-card deck.
 
-- **Rounds:** Pyramid structure — hand size decreases from starting count down to 1, then back up
+- **Rounds:** Descending only — hand size decreases from the starting count down to 1 (no climb back up)
 - **Trump:** Determined each round by flipping the top card of the undealt deck; always visible to all players
 - **Bidding:** Players bid tricks in turn order; last bidder cannot bid the number that makes total bids equal cards dealt (restriction rule)
 - **Card play:** Must follow suit if possible; can cut (trump) or fuse (off-suit) if void in led suit

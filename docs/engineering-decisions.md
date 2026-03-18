@@ -59,7 +59,7 @@ All of these are non-issues for a prototype with a friend group. Revisit when ap
 
 The client never writes game state directly. Trusting client-submitted state leads to cheating vectors and race conditions that are painful to debug later.
 
-**Game logic must live in a pure `gameRules.ts` module** with zero framework dependencies. This makes it trivially testable in isolation. API routes call into this module — they never contain rule logic themselves. Given the complexity of Judgement (suit-following, trump cutting, last-bidder restriction, pyramid round structure), this module will have extensive unit test coverage before any route is wired up.
+**Game logic must live in a pure `gameRules.ts` module** with zero framework dependencies. This makes it trivially testable in isolation. API routes call into this module — they never contain rule logic themselves. Given the complexity of Judgement (suit-following, trump cutting, last-bidder restriction, descending round structure), this module will have extensive unit test coverage before any route is wired up.
 
 ---
 
