@@ -112,18 +112,21 @@ Included from day one. No architectural impact.
 
 ---
 
-## Data Model (Initial Schema)
+## Data Model (Implemented Schema)
 
-To be finalized before M1 implementation, but the core entities are:
+- `profiles` — extends Supabase Auth users; `id` (FK to `auth.users`), `display_name`, `avatar_url`. Populated by `handle_new_user` trigger on `auth.users INSERT`.
+- `rooms` — `code` (7-char unique), `host_id`, `game_type`, `max_players`, `turn_timer_seconds`, `status` (`waiting` | `in_progress` | `finished` | `cancelled`), `expires_at`
+- `room_players` — join table: `room_id` + `user_id`, `seat_order` (assigned at game start), `status` (`active` | `disconnected` | `dropped`)
+- `games` — one per game, `room_id`, `status` (`in_progress` | `finished`)
+- `rounds` — one per round, `game_id`, `round_number`, `hand_size`, `trump_suit`, `trump_card_value`, `status` (`bidding` | `playing` | `complete`), `current_player_id`
+- `hands` — immutable dealt hand per player per round: `round_id`, `player_id`, `cards` (JSONB array of `{suit, value}`)
+- `bids` — one per player per round: `round_id`, `player_id`, `amount`
+- `tricks` — one per trick: `round_id`, `trick_number`, `led_suit`, `winner_id`
+- `trick_cards` — one card per player per trick: `trick_id`, `player_id`, `suit`, `value`
+- `round_scores` — scored after each round: `round_id`, `player_id`, `bid`, `tricks_won`, `score`
+- `game_results` — final result per player: `game_id`, `player_id`, `placement`, `result` (`win` | `loss`), `total_score`
 
-- `users` — managed by Supabase Auth, extended with display name and avatar
-- `rooms` — room code, host user, player count limits, turn timer setting, status (waiting/in-progress/finished)
-- `room_players` — join table: room ↔ user, seat order, status (`active` | `disconnected` | `dropped`), `disconnected_at` timestamp
-- `games` — one per completed/active game, linked to a room
-- `rounds` — one per round, stores trump card/suit, hand size, round number
-- `bids` — one per player per round
-- `tricks` — one per trick played, stores cards played and winner
-- `game_results` — final scores per player per game
+**Realtime publication** is enabled on: `room_players`, `rounds`, `bids`, `trick_cards`, `tricks`, `round_scores`. `bids` and `tricks` have `REPLICA IDENTITY FULL` so UPDATE payloads include all columns.
 
 ---
 
@@ -147,10 +150,6 @@ Never commit `.env.local`. Required variables:
 NEXT_PUBLIC_SUPABASE_URL=       # Supabase project URL (safe to expose)
 NEXT_PUBLIC_SUPABASE_ANON_KEY=  # Supabase anon key (safe to expose)
 SUPABASE_SERVICE_ROLE_KEY=      # Service role key — server-side only, never expose to client
-```
-
-
-   # server-side only, never expose to client
 ```
 
 ---
@@ -202,9 +201,44 @@ That's it for M1–M3.
 
 ---
 
+## M2 Architecture Patterns (established during Judgement implementation)
+
+### Admin client for all game API routes
+All API routes added in M2 (`bid`, `play`, `hand`, `start`) use `createAdminClient()` (service role key) for database queries after verifying auth via `supabase.auth.getUser()`. This bypasses RLS for game logic queries.
+
+**Why:** The `room_players` SELECT RLS policy is self-referential — it checks membership by querying `room_players` itself. A user who is not yet a member (e.g. joining a room) fails the policy evaluation, causing a Postgres error rather than returning zero rows. Using the admin client for game route DB queries avoids this class of issue entirely. Auth is still enforced at the application layer (check `user.id` against player lists explicitly).
+
+**Rule:** Auth check = SSR client (`supabase.auth.getUser()`). All DB queries in API routes = admin client.
+
+---
+
+### Stable Realtime channel pattern (refs over state in deps)
+`GameShell` subscribes to all game tables in a single `useEffect` with `[gameId]` as the only dependency. Game state (`round`, `currentTrick`) is accessed inside event handlers via `useRef`, not read from the closure.
+
+**Why:** If `round` or `currentTrick` were in `useEffect` deps, the channel would tear down and re-subscribe on every state change. This creates a window where events are missed. Using refs gives event handlers access to the latest state without triggering re-subscription.
+
+**Pattern:**
+```ts
+const roundRef = useRef(initialRound)
+useEffect(() => { roundRef.current = round }, [round])
+// useEffect([gameId]) — channel never recreates during gameplay
+```
+
+---
+
+### Test-only auth endpoint (`/api/test/auth`)
+Playwright E2E tests need authenticated `page.request` contexts. The SSR client sets session cookies, making all subsequent API calls from that page context authenticated.
+
+`POST /api/test/auth` accepts `{ email, password }`, calls `supabase.auth.signInWithPassword`, and returns `{ userId }`. It returns 404 in production (`NODE_ENV === 'production'`).
+
+**Why not Google OAuth in tests:** OAuth requires a real browser interaction. Email/password auth is testable headlessly. Test users are created via the Supabase Auth admin API.
+
+---
+
 ## Decisions Deferred
 
 - **Hosting cost optimization** — revisit at M4 when public traffic begins
 - **CDN / asset caching** — Vercel handles this automatically for now
 - **Database connection pooling** — Supabase handles this; revisit if query latency becomes an issue
 - **Second game architecture** — M5 concern; document how game modules will be structured when we get there
+- **`MIN_PLAYERS` constant** — currently set to `2` for dev/test; revert to `4` before M3 launch
