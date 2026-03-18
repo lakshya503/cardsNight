@@ -80,6 +80,7 @@ Trick-taking card game, 4–10 players, one standard 52-card deck.
 - **Scoring:** Exact bid = 10 × bid (bid of 0 = 10 pts); any other outcome = 0 pts for that round
 - **Win condition:** Highest cumulative score after all rounds; ties are shared wins
 - **Player counts and starting hand sizes:**
+  - 2–3 players → 10 cards
   - 4–6 players → 8 cards
   - 7 players → 7 cards
   - 8 players → 6 cards

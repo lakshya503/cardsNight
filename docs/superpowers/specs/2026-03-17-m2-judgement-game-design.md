@@ -78,6 +78,7 @@ export const CARD_RANK: Record<CardValue, number> = {
 
 | Players | Starting hand size | Total rounds |
 |---|---|---|
+| 2–3 | 10 | 10 |
 | 4–6 | 8 | 8 |
 | 7 | 7 | 7 |
 | 8 | 6 | 6 |
@@ -338,10 +339,10 @@ Each slice ships with a green test suite before the next slice begins.
 | 2 | Migration `20260317000001`; start game endpoint; WaitingRoom `rooms` subscription + redirect | E2E: host starts game, all players redirected to `/game/[gameId]` |
 | 3 | Bid endpoint + BiddingPanel + Realtime | E2E: all players bid in order; last-bidder forbidden value shown and rejected; round transitions to `playing` |
 | 4 | Play endpoint + TrickPanel + PlayerHand | E2E: cards played in order; follow-suit violation rejected with message and card stays in hand; trick winner resolved; next trick starts with winner leading |
-| 5 | Round scoring + game loop | E2E: seed a 2-player, 1-round game (hand_size=1) via direct DB insert bypassing `max_players` constraint; complete the round; correct winner shown on ResultsPanel |
+| 5 | Round scoring + game loop | E2E: seed a 2-player, 1-round game (hand_size=1); complete the round; correct winner shown on ResultsPanel |
 | 6 | Full game screen: GameBoard, Scoreboard, TrumpDisplay, ResultsPanel | E2E: multi-round game flow; scoreboard updates correctly after each round |
 
-**Note on Slice 5 seeding:** The DB constraint enforces `max_players BETWEEN 4 AND 10`. The E2E seed must insert directly via service_role (bypassing the constraint) to create a 2-player game. Do not attempt to create a room with `max_players=2` through the API.
+**Note on Slice 5 seeding:** The 2-player room can be created normally through the API — `max_players=2` is valid.
 
 **Note on Slice 5 scope:** A full 8-round game is not tested in E2E — it is covered by `gameRules.ts` unit tests in Slice 1 and manual QA.
 

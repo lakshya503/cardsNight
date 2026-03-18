@@ -47,7 +47,7 @@ create table public.rooms (
   status               text not null default 'waiting'
                          check (status in ('waiting', 'in_progress', 'finished', 'cancelled')),
   turn_timer_seconds   int check (turn_timer_seconds > 0),  -- null = no timer
-  max_players          int not null default 6 check (max_players between 4 and 10),
+  max_players          int not null default 6 check (max_players between 2 and 10),
   -- expires_at rules:
   --   unstarted room: 24h after created_at
   --   finished game:  2h after game finishes (updated by application)

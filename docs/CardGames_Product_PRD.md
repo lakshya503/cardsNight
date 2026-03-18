@@ -171,9 +171,10 @@ Judgement is a trick-taking card game where players bid on how many tricks they 
 
 ### 5.2 Players & Setup
 
-- Minimum players: 4. Maximum players: 10
+- Minimum players: 2. Maximum players: 10
 - One standard 52-card deck is used
 - Starting hand size is determined by player count as follows:
+  - 2 or 3 players: start with 10 cards
   - 4, 5, or 6 players: start with 8 cards
   - 7 players: start with 7 cards
   - 8 players: start with 6 cards
@@ -185,6 +186,7 @@ A full game consists of multiple rounds. Cards dealt decrease by 1 each round un
 
 - Cards dealt decrease by 1 each round until reaching 1
 - The 1-card round is the last round — the game ends after it completes
+- Example for 2–3 players (starting at 10 cards): rounds go 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
 - Example for 4–6 players (starting at 8 cards): rounds go 8, 7, 6, 5, 4, 3, 2, 1
 - Example for 7 players (starting at 7 cards): rounds go 7, 6, 5, 4, 3, 2, 1
 
