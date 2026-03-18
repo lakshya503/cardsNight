@@ -80,13 +80,14 @@ export async function getHand(
   gameId: string,
 ): Promise<Array<{ suit: string; value: string }>> {
   const res = await page.request.get(`/api/games/${gameId}/hand`)
-  if (!res.ok()) return []
+  if (!res.ok()) throw new Error(`getHand failed (${res.status()}): ${await res.text()}`)
   const { cards } = await res.json()
   return cards as Array<{ suit: string; value: string }>
 }
 
 /**
  * Plays a card via the API. The page must be authenticated as the current player.
+ * Retries once on 500 to handle transient Supabase connection drops.
  */
 export async function playCard(
   page: Page,
@@ -94,11 +95,18 @@ export async function playCard(
   suit: string,
   value: string,
 ): Promise<{ status: string; winnerId?: string }> {
-  const res = await page.request.post(`/api/games/${gameId}/play`, { data: { suit, value } })
-  if (!res.ok()) {
-    throw new Error(`playCard failed (${res.status()}): ${await res.text()}`)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await page.request.post(`/api/games/${gameId}/play`, { data: { suit, value } })
+    if (res.ok()) return res.json()
+    const body = await res.text()
+    if (res.status() !== 500 || attempt === 1) {
+      throw new Error(`playCard failed (${res.status()}): ${body}`)
+    }
+    // 500 on first attempt — wait briefly and retry
+    await new Promise((r) => setTimeout(r, 2000))
   }
-  return res.json()
+  // unreachable
+  throw new Error('playCard: unexpected loop exit')
 }
 
 /**
