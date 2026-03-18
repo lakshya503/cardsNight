@@ -89,7 +89,7 @@ describe('POST /api/rooms', () => {
 
   it('returns 422 for invalid max_players', async () => {
     vi.mocked(createClient).mockResolvedValue(makeSupabaseMock() as never)
-    const res = await POST(makeRequest({ ...validBody, max_players: 2 }))
+    const res = await POST(makeRequest({ ...validBody, max_players: 1 }))
     expect(res.status).toBe(422)
     const json = await res.json()
     expect(json.details[0].field).toBe('max_players')
