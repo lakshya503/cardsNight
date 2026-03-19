@@ -304,4 +304,58 @@ describe('POST /api/games/[gameId]/play', () => {
     expect(body.status).toBe('round_complete')
     expect(body.winnerId).toBe('player-1')
   })
+
+  it('sets next round current_player_id to the trick winner, not seat rotation', async () => {
+    // hand_size=2, trick_number=2 = last trick of the round
+    // player-2 plays the last card; player-1 wins the trick (A beats 3)
+    // player-1 should be current_player_id in the next round insert (not seat rotation)
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock({ id: 'player-2' }))
+    const adminMock = makeAdminMock({
+      round: { ...DEFAULT_ROUND, hand_size: 2, current_player_id: 'player-2' },
+      allTricks: [
+        { id: 'trick-1', trick_number: 1, led_suit: 'hearts', winner_id: 'player-2' },
+        { id: 'trick-2', trick_number: 2, led_suit: 'hearts', winner_id: null },
+      ],
+      handRow: { cards: [{ suit: 'hearts', value: '3' }] },
+      playedByPlayer: [],
+      existingTrickCards: [{ player_id: 'player-1', suit: 'hearts', value: 'A' }],
+      roundBids: [
+        { player_id: 'player-1', amount: 1 },
+        { player_id: 'player-2', amount: 1 },
+      ],
+      completedTricks: [
+        { winner_id: 'player-2' },
+      ],
+    })
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(adminMock)
+
+    const res = await POST(makeRequest('game-id', { suit: 'hearts', value: '3' }), makeParams())
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).toBe('round_complete')
+
+    // player-1 wins trick (A beats 3), so next round's first bidder/leader must be player-1
+    // Seat rotation would yield playerIds[getStartingBidderIndex(2, 2)] = playerIds[1] = 'player-2'
+    // The fix should pass winnerId ('player-1') instead
+
+    // Capture the insert argument directly from the mock chain
+    // The rounds insert is called as: admin.from('rounds').insert({...}).select('id').single()
+    // We need to find which .from('rounds') call led to an .insert()
+    // Strategy: inspect all from('rounds') invocations and find the one whose result had .insert called
+    const fromCalls = (adminMock.from as ReturnType<typeof vi.fn>).mock.calls
+    const fromResults = (adminMock.from as ReturnType<typeof vi.fn>).mock.results
+    let insertArg: Record<string, unknown> | null = null
+    for (let i = 0; i < fromCalls.length; i++) {
+      if (fromCalls[i][0] === 'rounds') {
+        const result = fromResults[i].value as { insert?: ReturnType<typeof vi.fn> }
+        if (result.insert && (result.insert as ReturnType<typeof vi.fn>).mock?.calls?.length > 0) {
+          insertArg = (result.insert as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>
+          break
+        }
+      }
+    }
+
+    expect(insertArg).not.toBeNull()
+    expect(insertArg!.current_player_id).toBe('player-1')
+  })
 })
