@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse, type NextRequest } from 'next/server'
-import { getValidBids, validateBid } from '@/lib/game/gameRules'
+import { getValidBids, validateBid, getStartingBidderIndex } from '@/lib/game/gameRules'
 
 interface RouteContext {
   params: Promise<{ gameId: string }>
@@ -112,8 +112,32 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   if (isLastBidder) {
     // All bids in — transition round to playing, insert first trick
-    const startingIndex = (round.round_number - 1) % players.length
-    const leadingPlayerId = players[startingIndex].user_id
+    let leadingPlayerId: string
+    if (round.round_number === 1) {
+      const startingIndex = getStartingBidderIndex(round.round_number, players.length)
+      leadingPlayerId = players[startingIndex].user_id
+    } else {
+      const { data: prevRound } = await admin
+        .from('rounds')
+        .select('id')
+        .eq('game_id', gameId)
+        .eq('round_number', round.round_number - 1)
+        .maybeSingle()
+
+      const { data: lastTrick } = prevRound
+        ? await admin
+            .from('tricks')
+            .select('winner_id')
+            .eq('round_id', prevRound.id)
+            .not('winner_id', 'is', null)
+            .order('trick_number', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        : { data: null }
+
+      leadingPlayerId = lastTrick?.winner_id
+        ?? players[getStartingBidderIndex(round.round_number, players.length)].user_id
+    }
 
     const { error: roundError } = await admin
       .from('rounds')

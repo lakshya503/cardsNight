@@ -4,7 +4,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import {
   validatePlay, getLeadSuit, getTrickWinner,
   dealHands, drawTrump, scoreRound, determinePlacements,
-  getStartingBidderIndex,
 } from '@/lib/game/gameRules'
 import { getPlayerHand } from '@/lib/game/server'
 import type { Card, Suit, CardValue, TrickCard } from '@/lib/game/types'
@@ -302,7 +301,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const nextHandSize = round.hand_size - 1
     const nextRoundNumber = round.round_number + 1
     const playerIds = players.map((p) => p.user_id)
-    const nextBidderId = playerIds[getStartingBidderIndex(nextRoundNumber, players.length)]
+    const nextBidderId = winnerId
 
     const { hands, remaining } = dealHands(playerIds, nextHandSize)
     const { trumpCard, trumpSuit } = drawTrump(remaining)

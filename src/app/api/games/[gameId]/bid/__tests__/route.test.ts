@@ -48,6 +48,8 @@ function makeAdminMock({
   ] as Array<{ user_id: string; seat_order: number }>,
   existingBids = [] as Array<{ amount: number }>,
   bidError = null as unknown,
+  prevRoundId = null as string | null,
+  lastTrickWinnerId = null as string | null,
 } = {}) {
   // games: .from('games').select().eq().maybeSingle()
   const gameMaybeSingle = vi.fn().mockResolvedValue({ data: game })
@@ -71,13 +73,22 @@ function makeAdminMock({
   const rpUpdateEq = vi.fn().mockResolvedValue({})
   const rpUpdate = vi.fn().mockReturnValue({ eq: rpUpdateEq })
 
-  // rounds SELECT: .select().eq().eq().order().limit().maybeSingle()
+  // rounds SELECT (call 0): active bidding round
+  // .select().eq('game_id').eq('status').order().limit().maybeSingle()
   const roundMaybeSingle = vi.fn().mockResolvedValue({ data: round })
   const roundLimit = vi.fn().mockReturnValue({ maybeSingle: roundMaybeSingle })
   const roundOrder = vi.fn().mockReturnValue({ limit: roundLimit })
   const roundEq2 = vi.fn().mockReturnValue({ order: roundOrder })
   const roundEq1 = vi.fn().mockReturnValue({ eq: roundEq2 })
   const roundSelect = vi.fn().mockReturnValue({ eq: roundEq1 })
+
+  // rounds SELECT (call 1): previous round lookup (isLastBidder, round_number > 1)
+  // .select('id').eq('game_id').eq('round_number').maybeSingle()
+  const prevRoundData = prevRoundId ? { id: prevRoundId } : null
+  const prevRoundMaybeSingle = vi.fn().mockResolvedValue({ data: prevRoundData })
+  const prevRoundEq2 = vi.fn().mockReturnValue({ maybeSingle: prevRoundMaybeSingle })
+  const prevRoundEq1 = vi.fn().mockReturnValue({ eq: prevRoundEq2 })
+  const prevRoundSelect = vi.fn().mockReturnValue({ eq: prevRoundEq1 })
 
   // rounds UPDATE: .update().eq()
   const roundUpdateEq = vi.fn().mockResolvedValue({ error: null })
@@ -90,13 +101,25 @@ function makeAdminMock({
   // bids INSERT
   const bidsInsert = vi.fn().mockResolvedValue({ error: bidError })
 
-  // tricks INSERT
+  // tricks INSERT (first trick of round)
   const tricksInsert = vi.fn().mockResolvedValue({ error: null })
+
+  // tricks SELECT (last trick winner lookup):
+  // .select('winner_id').eq('round_id').not().order().limit().maybeSingle()
+  const lastTrickData = lastTrickWinnerId ? { winner_id: lastTrickWinnerId } : null
+  const lastTrickMaybeSingle = vi.fn().mockResolvedValue({ data: lastTrickData })
+  const lastTrickLimit = vi.fn().mockReturnValue({ maybeSingle: lastTrickMaybeSingle })
+  const lastTrickOrder = vi.fn().mockReturnValue({ limit: lastTrickLimit })
+  const lastTrickNot = vi.fn().mockReturnValue({ order: lastTrickOrder })
+  const lastTrickEq = vi.fn().mockReturnValue({ not: lastTrickNot })
+  const lastTrickSelect = vi.fn().mockReturnValue({ eq: lastTrickEq })
 
   // Route tracks which table is accessed sequentially; we need `from` to return
   // different mocks depending on which table is requested and call sequence.
   // Build a call-count-aware dispatcher.
   let rpCallCount = 0
+  let roundsCallCount = 0
+  let tricksCallCount = 0
   const rpMocks = [rpMemberSelect, rpListSelect]
   const rpUpdateMock = rpUpdate
 
@@ -109,9 +132,18 @@ function makeAdminMock({
       if (idx === 1) return { select: rpMocks[1] }
       return { update: rpUpdateMock }
     }
-    if (table === 'rounds') return { select: roundSelect, update: roundUpdate }
+    if (table === 'rounds') {
+      const idx = roundsCallCount++
+      if (idx === 0) return { select: roundSelect, update: roundUpdate }
+      // Second rounds SELECT: previous round lookup (no order/limit chain)
+      return { select: prevRoundSelect, update: roundUpdate }
+    }
     if (table === 'bids') return { select: bidsSelect, insert: bidsInsert }
-    if (table === 'tricks') return { insert: tricksInsert }
+    if (table === 'tricks') {
+      const idx = tricksCallCount++
+      if (idx === 0) return { select: lastTrickSelect, insert: tricksInsert }
+      return { insert: tricksInsert }
+    }
     throw new Error(`Unexpected table: ${table}`)
   })
 
@@ -210,5 +242,43 @@ describe('POST /api/games/[gameId]/bid', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.status).toBe('playing')
+  })
+
+  it('sets first trick leader to previous round last trick winner when last bidder bids in round 2', async () => {
+    // Round 2, player-2 is last bidder.
+    // Previous round's last trick winner was player-1.
+    // current_player_id on the round update should be player-1, not seat rotation.
+    // Seat rotation: (round_number - 1) % players.length = (2 - 1) % 2 = 1 → player-2
+    // Correct: player-1 (last trick winner of round 1)
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock({ id: 'player-2' }))
+    const adminMock = makeAdminMock({
+      round: { id: 'round-2-id', round_number: 2, hand_size: 9, status: 'bidding', current_player_id: 'player-2' },
+      existingBids: [{ amount: 3 }],
+      prevRoundId: 'round-1-id',
+      lastTrickWinnerId: 'player-1',
+    })
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(adminMock)
+
+    const res = await POST(makeRequest('game-id', { amount: 2 }), makeParams())
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).toBe('playing')
+
+    // Find the rounds UPDATE call and verify current_player_id = 'player-1'
+    const fromCalls = (adminMock.from as ReturnType<typeof vi.fn>).mock.calls
+    const fromResults = (adminMock.from as ReturnType<typeof vi.fn>).mock.results
+    let updateArg: Record<string, unknown> | null = null
+    for (let i = 0; i < fromCalls.length; i++) {
+      if (fromCalls[i][0] === 'rounds') {
+        const result = fromResults[i].value as { update?: ReturnType<typeof vi.fn> }
+        if (result.update && (result.update as ReturnType<typeof vi.fn>).mock?.calls?.length > 0) {
+          updateArg = (result.update as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>
+          break
+        }
+      }
+    }
+
+    expect(updateArg).not.toBeNull()
+    expect(updateArg!.current_player_id).toBe('player-1')
   })
 })
