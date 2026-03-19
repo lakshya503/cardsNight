@@ -20,6 +20,8 @@ interface Props {
   onCardPlayed: (card: Card) => void
   /** Server-authoritative led suit; null until the first card of the trick is played */
   ledSuit: Suit | null
+  /** Current round's trump suit — used to subtly highlight trump cards in hand */
+  trumpSuit: string
   /** When true, only renders the hand (trick display lives in GameShell center) */
   handOnly?: boolean
 }
@@ -38,7 +40,7 @@ const SUIT_COLOR: Record<string, string> = {
   spades: 'text-slate-900',
 }
 
-export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerName, onCardPlayed, ledSuit, handOnly = false }: Props) {
+export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerName, onCardPlayed, ledSuit, trumpSuit, handOnly = false }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -100,6 +102,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
           <div className="flex flex-wrap gap-2">
             {hand.map((card) => {
               const isValid = validatePlay(card, hand, ledSuit)
+              const isTrump = card.suit === trumpSuit
               return (
                 <button
                   key={`${card.suit}:${card.value}`}
@@ -108,6 +111,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
                   aria-label={`Play ${card.value} of ${card.suit}`}
                   className={[
                     'relative w-20 h-28 rounded-xl bg-white shadow-md flex flex-col p-1.5 select-none transition-opacity',
+                    isTrump ? 'ring-2 ring-amber-400/70' : '',
                     isValid
                       ? `hover:ring-2 hover:ring-indigo-400`
                       : 'opacity-40 cursor-not-allowed',
@@ -131,9 +135,9 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
             {hand.map((card) => (
               <div
                 key={`${card.suit}:${card.value}`}
-                className="relative w-20 h-28 rounded-xl bg-white shadow-md flex flex-col p-1.5 select-none"
+                className={`relative w-20 h-28 rounded-xl bg-white shadow-md flex flex-col p-1.5 select-none${card.suit === trumpSuit ? ' ring-2 ring-amber-400/70' : ''}`}
               >
-                <span className={`text-sm font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
+                <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
                 <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
                   {SUIT_SYMBOL[card.suit]}
                 </div>
