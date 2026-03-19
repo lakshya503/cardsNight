@@ -347,6 +347,7 @@ export function GameShell({
                   isMyTurn={isMyTurn}
                   currentPlayerName={currentPlayerName}
                   onCardPlayed={handleCardPlayed}
+                  ledSuit={(currentTrick?.led_suit ?? null) as Suit | null}
                   handOnly
                 />
               ) : (

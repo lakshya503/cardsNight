@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { validatePlay, getLeadSuit } from '@/lib/game/gameRules'
-import type { Card, Suit, CardValue } from '@/lib/game/types'
+import { validatePlay } from '@/lib/game/gameRules'
+import type { Card, Suit } from '@/lib/game/types'
 
 interface TrickCardDisplay {
   playerId: string
@@ -24,6 +24,8 @@ interface Props {
   isMyTurn: boolean
   currentPlayerName: string | null
   onCardPlayed: (card: Card) => void
+  /** Server-authoritative led suit; null until the first card of the trick is played */
+  ledSuit: Suit | null
   /** When true, only renders the hand (trick display lives in GameShell center) */
   handOnly?: boolean
 }
@@ -42,13 +44,9 @@ const SUIT_COLOR: Record<string, string> = {
   spades: 'text-slate-200',
 }
 
-export function TrickPanel({ gameId, round, hand, trickCards, isMyTurn, currentPlayerName, onCardPlayed, handOnly = false }: Props) {
+export function TrickPanel({ gameId, round, hand, trickCards, isMyTurn, currentPlayerName, onCardPlayed, ledSuit, handOnly = false }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const leadSuit = getLeadSuit(
-    trickCards.map((tc) => ({ playerId: tc.playerId, suit: tc.suit as Suit, value: tc.value as CardValue }))
-  )
 
   async function playCard(card: Card) {
     setSubmitting(true)
@@ -79,7 +77,7 @@ export function TrickPanel({ gameId, round, hand, trickCards, isMyTurn, currentP
         <div className="p-4 bg-slate-800 rounded-lg">
           <p className="text-sm text-slate-400 mb-3">
             Current trick
-            {leadSuit && <span className="ml-2 capitalize">· {leadSuit} led</span>}
+            {ledSuit && <span className="ml-2 capitalize">· {ledSuit} led</span>}
           </p>
           <div className="flex flex-wrap gap-3 min-h-[64px]">
             {trickCards.length === 0 ? (
@@ -104,7 +102,7 @@ export function TrickPanel({ gameId, round, hand, trickCards, isMyTurn, currentP
           <p className="text-sm text-slate-400 mb-3">Your hand · Trump: {round.trump_suit}</p>
           <div className="flex flex-wrap gap-2">
             {hand.map((card) => {
-              const isValid = validatePlay(card, hand, leadSuit)
+              const isValid = validatePlay(card, hand, ledSuit)
               return (
                 <button
                   key={`${card.suit}:${card.value}`}
