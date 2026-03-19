@@ -67,6 +67,35 @@ M2 goal: 4+ friends play a complete game of Judgement with correct rules, scorin
 
 ---
 
+## [M2 Gameplay Polish] — 2026-03-19
+
+### Fixed
+- Round summary overlay was being dismissed before the user saw it — `router.refresh()` (triggered by `rounds INSERT` Realtime event) ran the `useEffect` sync which called `setShowRoundSummary(false)`. Fixed by snapshotting `tricksWon` and `bids` into frozen summary state at round-complete time; overlay now uses snapshot data and is only dismissed by explicit user tap
+- `rounds.status` Postgres CHECK constraint had `'finished'` but server wrote `'complete'` — every round completion was silently failing with a 500. Fixed via migration `20260319000000_fix_rounds_status_constraint.sql` (applied to live DB); constraint now allows `('bidding', 'playing', 'complete')`
+- "Starting trick" screen persisted after round transition — two causes: (1) `useState` initial values don't update when `router.refresh()` brings new props; fixed with `useEffect` keyed on `initialRound?.id` that resets all per-round state. (2) `tricks INSERT` Realtime events occasionally dropped mid-round; fixed with active Supabase client fallback fetch after each trick resolution
+
+### Added
+- Tricks-won tracking per player per round via `tricks UPDATE` Realtime events (`winner_id` field)
+- Progress bar replacing N/M text badge under player names and opponents — green fill toward bid goal, amber if over bid, special display for bid=0
+- End-of-round summary overlay on round complete — shows each player's tricks/bid, round score (`+N`), and running total; frozen snapshot data so it stays correct even as next round loads
+- "Continue to next round →" button on round summary; overlay stays until explicitly dismissed
+- Trump suit highlight — thin amber ring (`ring-2 ring-amber-400/70`) on trump-suited cards in hand, applied during bidding, waiting, and play phases
+- Unit test: last trick of last round (hand_size=1) → `game_complete` response and `game_results` insert
+- Supabase migration: fix `rounds_status_check` constraint to use `'complete'` instead of `'finished'`
+
+### Changed
+- Card trick animation: 700ms pause (so all players can see the played cards) before 700ms CSS translate toward winner — was immediate
+- Card value font size bumped from `text-sm` to `text-base` across all card renders (trump display, trick center, hand)
+- Status messages ("abc is bidding…", "Your turn") use warm amber background (`bg-amber-900/50`) instead of blending into slate UI
+- Opponent row uses `flex-wrap` to handle up to 9 opponents — was a single non-wrapping row that overflowed at 3+ players
+- Trick cards in center use `flex-wrap justify-center` to handle up to 10 cards
+- Round summary and Scoreboard lists are scrollable with `max-h` caps — no longer grow unbounded at 10 players
+- Round winner (previous trick winner) leads bidding and first card play next round — seat-order rotation was incorrect
+- `Scoreboard` simplified to name + total only; bid/tricks ratio removed (shown in player area instead)
+- `TrickPanel` `round` prop removed (unused after trump label was removed)
+
+---
+
 ## [Pre-M3 Hardening] — 2026-03-18
 
 ### Fixed

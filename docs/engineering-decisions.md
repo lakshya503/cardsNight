@@ -226,6 +226,61 @@ useEffect(() => { roundRef.current = round }, [round])
 
 ---
 
+### Realtime unreliability — active fallback fetch after trick resolution
+Supabase Realtime occasionally drops `INSERT` events (observed: `tricks INSERT` being swallowed after a trick resolves). If this happens, the next trick never appears and the game stalls.
+
+**Mitigation:** After every `tricks UPDATE` where `winner_id` is set (trick resolved), GameShell starts a `setTimeout` that fires after the animation completes (~1400ms total). Inside that timeout, it performs an active Supabase client query for the next incomplete trick (`winner_id IS NULL`). If the INSERT event was dropped, this fetch recovers the state; if the event arrived normally, the query returns the same data idempotently.
+
+```ts
+setTimeout(async () => {
+  const { data: nextTrick } = await sb.from('tricks')
+    .select('id, trick_number, led_suit, winner_id')
+    .eq('round_id', roundId).is('winner_id', null).maybeSingle()
+  if (nextTrick) setCurrentTrick(nextTrick as Trick)
+}, 700) // after CSS animation
+```
+
+**Principle:** Realtime is "best-effort delivery with optimistic UI"; active DB queries are the fallback for correctness. Do not rely on Realtime as the sole mechanism for critical state transitions.
+
+---
+
+### useState sync via useEffect keyed on round ID
+`router.refresh()` causes the Server Component to re-render and pass new props, but **`useState` initial values are only used on first mount** — they do not update when props change. Without explicit sync, `round`, `hand`, `bids`, etc. stay stale after a round transition.
+
+**Fix:** A dedicated `useEffect` keyed on `initialRound?.id` resets all per-round client state whenever the server provides a new round:
+
+```ts
+// eslint-disable-next-line react-hooks/exhaustive-deps
+useEffect(() => {
+  setRound(initialRound); setBids(initialBids); setHand(initialHand)
+  setCurrentTrick(initialCurrentTrick); setTrickCards(initialTrickCards)
+  setTricksWon(initialTricksWon); setTrickAnimation(null)
+  roundRef.current = initialRound; currentTrickRef.current = initialCurrentTrick
+}, [initialRound?.id])
+```
+
+**Important:** `showRoundSummary` is intentionally excluded from this reset — see Snapshot state pattern below.
+
+---
+
+### Snapshot state pattern for the round summary overlay
+The end-of-round summary must show bids and tricks-won from the *just-completed* round, but `router.refresh()` (triggered by `rounds INSERT` for the new round) arrives within milliseconds of round completion and would overwrite `bids` and `tricksWon` in client state.
+
+**Fix:** When `rounds UPDATE` fires with `status === 'complete'`, take an immediate snapshot into separate frozen state vars before the new round's data arrives:
+
+```ts
+setSummaryTricksWon({ ...tricksWonRef.current })  // ref = always current
+setSummaryBids([...bidsRef.current])
+setSummaryRoundScores({})  // populated incrementally by round_scores INSERTs
+setShowRoundSummary(true)
+```
+
+The overlay reads from `summaryTricksWon` / `summaryBids` / `summaryRoundScores`, not from live game state. The `useEffect` sync resets live state freely without affecting the overlay. User dismisses with an explicit tap; only then does the overlay clear.
+
+**When to apply this pattern:** Any overlay/modal that must display state from a specific moment in time while the underlying game state continues evolving.
+
+---
+
 ### Test-only auth endpoint (`/api/test/auth`)
 Playwright E2E tests need authenticated `page.request` contexts. The SSR client sets session cookies, making all subsequent API calls from that page context authenticated.
 
