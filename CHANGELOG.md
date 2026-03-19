@@ -53,6 +53,20 @@ M2 goal: 4+ friends play a complete game of Judgement with correct rules, scorin
 
 ---
 
+## [Post-M2 Gameplay Fixes] — 2026-03-18
+
+### Fixed
+- Card play validation now uses `led_suit` from the DB instead of client-side `trickCards` state,
+  eliminating false suit-follow restrictions when Realtime drops the trick INSERT event
+- Round winner now bids first and plays the first card of the following round (was using
+  seat-order rotation instead of tracking the previous trick winner)
+
+### Changed
+- Playing cards resized from 48×64px to 80×112px with a proper corner-value + centered-suit
+  layout for improved readability
+
+---
+
 ## [Pre-M3 Hardening] — 2026-03-18
 
 ### Fixed
