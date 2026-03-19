@@ -13,7 +13,7 @@ const SUIT_SYMBOL: Record<string, string> = {
 }
 const SUIT_COLOR: Record<string, string> = {
   hearts: 'text-red-500', diamonds: 'text-red-500',
-  clubs: 'text-slate-800', spades: 'text-slate-800',
+  clubs: 'text-slate-900', spades: 'text-slate-900',
 }
 
 interface Player {
@@ -288,7 +288,7 @@ export function GameShell({
             <div className="flex flex-col items-center gap-1">
               <p className="text-xs text-slate-400 uppercase tracking-wide">Trump</p>
               <div
-                className={`w-16 h-24 rounded-xl bg-white shadow-lg flex flex-col items-center justify-center gap-1 select-none ${SUIT_COLOR[round.trump_suit]}`}
+                className={`w-20 h-28 rounded-xl bg-white shadow-lg flex flex-col items-center justify-center gap-1 select-none ${SUIT_COLOR[round.trump_suit]}`}
               >
                 <span className="text-lg font-bold leading-none">{round.trump_card_value}</span>
                 <span className="text-3xl leading-none">{SUIT_SYMBOL[round.trump_suit]}</span>
@@ -308,10 +308,11 @@ export function GameShell({
             <div className="flex gap-3">
               {trickCards.map((tc) => (
                 <div key={tc.playerId} className="flex flex-col items-center gap-1">
-                  <div
-                    className={`w-12 h-16 rounded-lg bg-white flex items-center justify-center font-bold text-sm ${SUIT_COLOR[tc.suit]}`}
-                  >
-                    {tc.value}{SUIT_SYMBOL[tc.suit]}
+                  <div className="relative w-20 h-28 rounded-xl bg-white shadow-md flex flex-col p-1.5 select-none">
+                    <span className={`text-sm font-bold leading-none ${SUIT_COLOR[tc.suit]}`}>{tc.value}</span>
+                    <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[tc.suit]}`}>
+                      {SUIT_SYMBOL[tc.suit]}
+                    </div>
                   </div>
                   <span className="text-xs text-slate-400">{tc.displayName}</span>
                 </div>
@@ -356,9 +357,12 @@ export function GameShell({
                   {hand.map((card) => (
                     <div
                       key={`${card.suit}:${card.value}`}
-                      className={`w-12 h-16 rounded-lg bg-white flex items-center justify-center font-bold text-sm select-none ${SUIT_COLOR[card.suit]}`}
+                      className="relative w-20 h-28 rounded-xl bg-white shadow-md flex flex-col p-1.5 select-none"
                     >
-                      {card.value}{SUIT_SYMBOL[card.suit]}
+                      <span className={`text-sm font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
+                      <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
+                        {SUIT_SYMBOL[card.suit]}
+                      </div>
                     </div>
                   ))}
                 </div>
