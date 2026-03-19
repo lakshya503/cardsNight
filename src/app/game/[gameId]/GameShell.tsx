@@ -8,6 +8,14 @@ import { TrickPanel } from './TrickPanel'
 import { Scoreboard } from './Scoreboard'
 import type { Card, Suit, CardValue } from '@/lib/game/types'
 
+const SUIT_SYMBOL: Record<string, string> = {
+  hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠',
+}
+const SUIT_COLOR: Record<string, string> = {
+  hearts: 'text-red-500', diamonds: 'text-red-500',
+  clubs: 'text-slate-800', spades: 'text-slate-800',
+}
+
 interface Player {
   userId: string
   seatOrder: number
@@ -88,13 +96,14 @@ export function GameShell({
   useEffect(() => { currentTrickRef.current = currentTrick }, [currentTrick])
 
   const playerMap = Object.fromEntries(players.map((p) => [p.userId, p]))
+  const me = playerMap[userId]
+  const opponents = players.filter((p) => p.userId !== userId)
 
   useEffect(() => {
     const supabase = createClient()
 
     const channel = supabase
       .channel(`game:${gameId}`)
-      // Game UPDATE: navigate to results when game finishes
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameId}` },
@@ -104,32 +113,25 @@ export function GameShell({
           }
         }
       )
-      // Round UPDATE: status + turn changes; new round resets local state
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` },
         (payload) => {
           const updated = payload.new as Round
           if (updated.id !== roundRef.current?.id) {
-            // New round — fetch fresh hand from server since we can't derive it client-side
             setBids([])
             setTrickCards([])
             setCurrentTrick(null)
-            setHand([]) // page will reload on navigation; handled by round INSERT subscription
+            setHand([])
           }
           setRound(updated)
         }
       )
-      // New round INSERT: page refresh pulls the new round's hand server-side.
-      // We trigger a router refresh so Next.js re-runs the server component.
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` },
-        () => {
-          router.refresh()
-        }
+        () => { router.refresh() }
       )
-      // Bids INSERT
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'bids' },
@@ -141,7 +143,6 @@ export function GameShell({
           )
         }
       )
-      // Tricks INSERT: new trick started
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'tricks' },
@@ -152,7 +153,6 @@ export function GameShell({
           setTrickCards([])
         }
       )
-      // Tricks UPDATE: led_suit set or winner determined
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'tricks' },
@@ -163,7 +163,6 @@ export function GameShell({
           }
         }
       )
-      // trick_cards INSERT: a card was played
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'trick_cards' },
@@ -178,7 +177,6 @@ export function GameShell({
           )
         }
       )
-      // round_scores INSERT: a round has been scored — update cumulative totals
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'round_scores' },
@@ -192,9 +190,7 @@ export function GameShell({
       )
       .subscribe()
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => { supabase.removeChannel(channel) }
   }, [gameId, playerMap, router])
 
   function handleCardPlayed(card: Card) {
@@ -204,7 +200,7 @@ export function GameShell({
         ? prev
         : [...prev, {
             playerId: userId,
-            displayName: playerMap[userId]?.displayName ?? 'You',
+            displayName: me?.displayName ?? 'You',
             suit: card.suit,
             value: card.value,
           }]
@@ -215,10 +211,24 @@ export function GameShell({
   const isBidding = round?.status === 'bidding'
   const isPlaying = round?.status === 'playing'
   const hasBid = bids.some((b) => b.player_id === userId)
+  const myBid = bids.find((b) => b.player_id === userId)?.amount
 
   const currentPlayerName = round?.current_player_id
     ? (playerMap[round.current_player_id]?.displayName ?? 'Unknown')
     : null
+
+  // Central status message visible to everyone
+  let statusMessage = ''
+  if (isBidding) {
+    if (isMyTurn && !hasBid) statusMessage = 'Your turn to place a bid'
+    else if (hasBid) statusMessage = `Waiting for ${currentPlayerName} to bid…`
+    else statusMessage = `${currentPlayerName} is choosing their bid…`
+  } else if (isPlaying) {
+    if (isMyTurn) statusMessage = 'Your turn to play a card'
+    else statusMessage = `${currentPlayerName}'s turn to play…`
+  } else if (round?.status === 'complete') {
+    statusMessage = 'Round complete — starting next round…'
+  }
 
   const scoreboardData = players.map((p) => ({
     userId: p.userId,
@@ -227,67 +237,167 @@ export function GameShell({
     currentBid: bids.find((b) => b.player_id === p.userId)?.amount,
   }))
 
+  function getBidLabel(playerId: string) {
+    const bid = bids.find((b) => b.player_id === playerId)
+    if (bid !== undefined) return `bid ${bid.amount}`
+    if (isBidding && round?.current_player_id === playerId) return 'bidding…'
+    return null
+  }
+
   return (
-    <main className="min-h-screen bg-slate-900 text-white p-6">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-fraunces">Round {round?.round_number ?? '—'}</h1>
+    <main className="min-h-screen bg-slate-900 text-white flex flex-col">
+
+      {/* Header */}
+      <header className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+        <span className="font-semibold">Round {round?.round_number ?? '—'}</span>
+        <span className="text-sm text-slate-400">
+          {round ? `${round.hand_size} card${round.hand_size !== 1 ? 's' : ''} this round` : ''}
+        </span>
+      </header>
+
+      {/* Game board — three rows: opponent / table / you */}
+      <div className="flex-1 flex flex-col max-w-lg mx-auto w-full px-4 py-4 gap-4">
+
+        {/* Scoreboard */}
+        <Scoreboard scores={scoreboardData} currentRoundNumber={round?.round_number ?? 1} />
+
+        {/* ── Opponent row (top) ─────────────────────────── */}
+        <div className="flex justify-center gap-4">
+          {opponents.map((p) => {
+            const label = getBidLabel(p.userId)
+            return (
+              <div
+                key={p.userId}
+                className="flex flex-col items-center gap-1 px-4 py-3 bg-slate-800 rounded-xl min-w-[100px]"
+              >
+                <div className="w-9 h-9 rounded-full bg-slate-600 flex items-center justify-center text-sm font-bold">
+                  {p.displayName[0].toUpperCase()}
+                </div>
+                <span className="text-sm font-medium">{p.displayName}</span>
+                {label && <span className="text-xs text-slate-400">{label}</span>}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* ── Table center ──────────────────────────────── */}
+        <div className="flex flex-col items-center gap-4">
+
+          {/* Trump card */}
           {round && (
-            <div className="text-right">
-              <p className="text-xs text-slate-400">Trump</p>
-              <p className="font-bold capitalize">{round.trump_card_value} of {round.trump_suit}</p>
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-xs text-slate-400 uppercase tracking-wide">Trump</p>
+              <div
+                className={`w-16 h-24 rounded-xl bg-white shadow-lg flex flex-col items-center justify-center gap-1 select-none ${SUIT_COLOR[round.trump_suit]}`}
+              >
+                <span className="text-lg font-bold leading-none">{round.trump_card_value}</span>
+                <span className="text-3xl leading-none">{SUIT_SYMBOL[round.trump_suit]}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Status message */}
+          {statusMessage && (
+            <p className="text-slate-300 text-sm text-center px-4 py-2 bg-slate-800 rounded-lg">
+              {statusMessage}
+            </p>
+          )}
+
+          {/* Current trick cards (during playing) */}
+          {isPlaying && currentTrick && trickCards.length > 0 && (
+            <div className="flex gap-3">
+              {trickCards.map((tc) => (
+                <div key={tc.playerId} className="flex flex-col items-center gap-1">
+                  <div
+                    className={`w-12 h-16 rounded-lg bg-white flex items-center justify-center font-bold text-sm ${SUIT_COLOR[tc.suit]}`}
+                  >
+                    {tc.value}{SUIT_SYMBOL[tc.suit]}
+                  </div>
+                  <span className="text-xs text-slate-400">{tc.displayName}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
-        <Scoreboard scores={scoreboardData} currentRoundNumber={round?.round_number ?? 1} />
+        {/* ── Your row (bottom) ─────────────────────────── */}
+        <div className="flex flex-col gap-3">
 
-        {isBidding && (
-          <div data-testid="bidding-panel">
-            {isMyTurn && !hasBid ? (
-              <BiddingPanel
-                gameId={gameId}
-                round={round!}
-                existingBids={bids}
-                playerCount={players.length}
-              />
-            ) : (
-              <div className="p-4 bg-slate-800 rounded-lg text-slate-400">
-                {hasBid
-                  ? 'Waiting for other players to bid…'
-                  : `Waiting for ${currentPlayerName} to bid…`}
-              </div>
+          {/* Your identity + bid status */}
+          <div className="flex items-center gap-2 justify-center">
+            <span className="text-sm font-medium">{me?.displayName ?? 'You'}</span>
+            {myBid !== undefined && (
+              <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
+                bid {myBid}
+              </span>
             )}
           </div>
-        )}
 
-        {isPlaying && (
-          <div data-testid="trick-panel">
-            {currentTrick ? (
-              <TrickPanel
-                gameId={gameId}
-                round={round!}
-                hand={hand}
-                trickCards={trickCards}
-                players={players}
-                userId={userId}
-                isMyTurn={isMyTurn}
-                currentPlayerName={currentPlayerName}
-                onCardPlayed={handleCardPlayed}
-              />
-            ) : (
-              <div className="p-4 bg-slate-800 rounded-lg text-slate-400">
+          {/* Your hand — visible during both bidding and playing */}
+          {hand.length > 0 && (
+            <div>
+              <p className="text-xs text-slate-400 mb-2 text-center">Your hand</p>
+              {isPlaying && currentTrick ? (
+                // Clickable hand inside TrickPanel during play phase
+                <TrickPanel
+                  gameId={gameId}
+                  round={round!}
+                  hand={hand}
+                  trickCards={trickCards}
+                  isMyTurn={isMyTurn}
+                  currentPlayerName={currentPlayerName}
+                  onCardPlayed={handleCardPlayed}
+                  handOnly
+                />
+              ) : (
+                // Read-only hand during bidding
+                <div className="flex flex-wrap justify-center gap-2">
+                  {hand.map((card) => (
+                    <div
+                      key={`${card.suit}:${card.value}`}
+                      className={`w-12 h-16 rounded-lg bg-white flex items-center justify-center font-bold text-sm select-none ${SUIT_COLOR[card.suit]}`}
+                    >
+                      {card.value}{SUIT_SYMBOL[card.suit]}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Bidding action */}
+          {isBidding && (
+            <div data-testid="bidding-panel">
+              {isMyTurn && !hasBid ? (
+                <BiddingPanel
+                  gameId={gameId}
+                  round={round!}
+                  existingBids={bids}
+                  playerCount={players.length}
+                />
+              ) : null}
+            </div>
+          )}
+
+          {/* Playing action — handled inside TrickPanel above */}
+          {isPlaying && !currentTrick && (
+            <div data-testid="trick-panel">
+              <div className="p-4 bg-slate-800 rounded-lg text-slate-400 text-center text-sm">
                 Starting trick…
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+          {isPlaying && currentTrick && (
+            <div data-testid="trick-panel" />
+          )}
+        </div>
 
         {round?.status === 'complete' && (
           <div data-testid="round-complete" className="p-4 bg-slate-800 rounded-lg text-slate-300 text-center">
             Round complete — starting next round…
           </div>
         )}
+
       </div>
     </main>
   )

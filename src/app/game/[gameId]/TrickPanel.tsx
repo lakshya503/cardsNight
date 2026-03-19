@@ -11,11 +11,6 @@ interface TrickCardDisplay {
   value: string
 }
 
-interface Player {
-  userId: string
-  displayName: string
-}
-
 interface Round {
   id: string
   trump_suit: string
@@ -26,11 +21,11 @@ interface Props {
   round: Round
   hand: Card[]
   trickCards: TrickCardDisplay[]
-  players: Player[]
-  userId: string
   isMyTurn: boolean
   currentPlayerName: string | null
   onCardPlayed: (card: Card) => void
+  /** When true, only renders the hand (trick display lives in GameShell center) */
+  handOnly?: boolean
 }
 
 const SUIT_SYMBOL: Record<string, string> = {
@@ -47,7 +42,7 @@ const SUIT_COLOR: Record<string, string> = {
   spades: 'text-slate-200',
 }
 
-export function TrickPanel({ gameId, round, hand, trickCards, players, userId, isMyTurn, currentPlayerName, onCardPlayed }: Props) {
+export function TrickPanel({ gameId, round, hand, trickCards, isMyTurn, currentPlayerName, onCardPlayed, handOnly = false }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -78,28 +73,30 @@ export function TrickPanel({ gameId, round, hand, trickCards, players, userId, i
   }
 
   return (
-    <div className="space-y-6">
-      {/* Current trick */}
-      <div className="p-4 bg-slate-800 rounded-lg">
-        <p className="text-sm text-slate-400 mb-3">
-          Current trick
-          {leadSuit && <span className="ml-2 capitalize">· {leadSuit} led</span>}
-        </p>
-        <div className="flex flex-wrap gap-3 min-h-[64px]">
-          {trickCards.length === 0 ? (
-            <p className="text-slate-500 text-sm self-center">No cards played yet</p>
-          ) : (
-            trickCards.map((tc) => (
-              <div key={tc.playerId} className="flex flex-col items-center gap-1">
-                <div className={`w-12 h-16 rounded-lg bg-white flex items-center justify-center font-bold text-lg ${SUIT_COLOR[tc.suit]}`}>
-                  <span>{tc.value}{SUIT_SYMBOL[tc.suit]}</span>
+    <div className="space-y-4">
+      {/* Current trick — hidden in handOnly mode (rendered in GameShell center) */}
+      {!handOnly && (
+        <div className="p-4 bg-slate-800 rounded-lg">
+          <p className="text-sm text-slate-400 mb-3">
+            Current trick
+            {leadSuit && <span className="ml-2 capitalize">· {leadSuit} led</span>}
+          </p>
+          <div className="flex flex-wrap gap-3 min-h-[64px]">
+            {trickCards.length === 0 ? (
+              <p className="text-slate-500 text-sm self-center">No cards played yet</p>
+            ) : (
+              trickCards.map((tc) => (
+                <div key={tc.playerId} className="flex flex-col items-center gap-1">
+                  <div className={`w-12 h-16 rounded-lg bg-white flex items-center justify-center font-bold text-lg ${SUIT_COLOR[tc.suit]}`}>
+                    <span>{tc.value}{SUIT_SYMBOL[tc.suit]}</span>
+                  </div>
+                  <span className="text-xs text-slate-400">{tc.displayName}</span>
                 </div>
-                <span className="text-xs text-slate-400">{tc.displayName}</span>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Hand or waiting state */}
       {isMyTurn ? (
