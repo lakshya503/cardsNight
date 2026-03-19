@@ -79,6 +79,25 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
     }
   }, [room.id])
 
+  // Polling fallback — fires every 3 s if Realtime doesn't deliver
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      refreshPlayers()
+
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('rooms')
+        .select('status, current_game_id')
+        .eq('id', room.id)
+        .maybeSingle()
+
+      if (data?.status === 'in_progress' && data.current_game_id) {
+        router.push(`/game/${data.current_game_id}`)
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [room.id, refreshPlayers, router])
+
   // Subscribe to room_players changes (player list) and rooms changes (game start)
   useEffect(() => {
     const supabase = createClient()
