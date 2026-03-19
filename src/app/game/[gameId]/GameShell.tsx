@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { BiddingPanel } from './BiddingPanel'
@@ -153,12 +153,21 @@ export function GameShell({
     currentTrickRef.current = initialCurrentTrick
   }, [initialRound?.id])
 
-  const playerMap = Object.fromEntries(players.map((p) => [p.userId, p]))
+  // useMemo is critical here: playerMap must be a stable reference so it doesn't
+  // appear as changed on every render and tear down the Realtime channel.
+  const playerMap = useMemo(
+    () => Object.fromEntries(players.map((p) => [p.userId, p])),
+    [players]
+  )
+  const playerMapRef = useRef(playerMap)
+  useEffect(() => { playerMapRef.current = playerMap }, [playerMap])
+
   const me = playerMap[userId]
   const opponents = players.filter((p) => p.userId !== userId)
 
   useEffect(() => {
     const supabase = createClient()
+    const rt = (...args: unknown[]) => console.log('[RT]', ...args)
 
     const channel = supabase
       .channel(`game:${gameId}`)
@@ -166,7 +175,9 @@ export function GameShell({
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameId}` },
         (payload) => {
-          if ((payload.new as { status: string }).status === 'finished') {
+          const status = (payload.new as { status: string }).status
+          rt('games UPDATE', { status })
+          if (status === 'finished') {
             router.push(`/game/${gameId}/results`)
           }
         }
@@ -176,17 +187,16 @@ export function GameShell({
         { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` },
         (payload) => {
           const updated = payload.new as Round
+          rt('rounds UPDATE', { id: updated.id, status: updated.status, currentRoundId: roundRef.current?.id })
           if (updated.id !== roundRef.current?.id) {
-            // A different round is now current — reset per-round play state.
-            // We do NOT dismiss the summary here; it stays until the user taps.
+            rt('rounds UPDATE → new round, resetting per-round state')
             setBids([])
             setTrickCards([])
             setCurrentTrick(null)
             setHand([])
             setTricksWon({})
           } else if (updated.status === 'complete' && roundRef.current?.status !== 'complete') {
-            // This round just completed — snapshot current state and show the summary overlay.
-            // round_scores INSERT events will populate summaryRoundScores as they arrive.
+            rt('rounds UPDATE → round complete, showing summary')
             setSummaryRoundNumber(updated.round_number)
             setSummaryTricksWon({ ...tricksWonRef.current })
             setSummaryBids([...bidsRef.current])
@@ -199,14 +209,18 @@ export function GameShell({
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` },
-        () => { router.refresh() }
+        (payload) => {
+          rt('rounds INSERT → calling router.refresh()', { id: (payload.new as { id: string }).id })
+          router.refresh()
+        }
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'bids' },
         (payload) => {
           const bid = payload.new as Bid & { round_id: string }
-          if (bid.round_id !== roundRef.current?.id) return
+          rt('bids INSERT', { player_id: bid.player_id, amount: bid.amount, round_id: bid.round_id, currentRoundId: roundRef.current?.id })
+          if (bid.round_id !== roundRef.current?.id) { rt('bids INSERT → ignored (wrong round)'); return }
           setBids((prev) =>
             prev.some((b) => b.player_id === bid.player_id) ? prev : [...prev, bid]
           )
@@ -217,9 +231,9 @@ export function GameShell({
         { event: 'INSERT', schema: 'public', table: 'tricks' },
         (payload) => {
           const trick = payload.new as Trick
-          if (trick.round_id !== roundRef.current?.id) return
+          rt('tricks INSERT', { id: trick.id, round_id: trick.round_id, currentRoundId: roundRef.current?.id, animating: trickAnimationRef.current })
+          if (trick.round_id !== roundRef.current?.id) { rt('tricks INSERT → ignored (wrong round)'); return }
           setCurrentTrick(trick)
-          // Don't wipe trickCards mid-animation; the animation timeout clears them
           if (!trickAnimationRef.current) setTrickCards([])
         }
       )
@@ -228,7 +242,8 @@ export function GameShell({
         { event: 'UPDATE', schema: 'public', table: 'tricks' },
         (payload) => {
           const trick = payload.new as Trick
-          if (trick.id !== currentTrickRef.current?.id) return
+          rt('tricks UPDATE', { id: trick.id, winner_id: trick.winner_id, currentTrickId: currentTrickRef.current?.id })
+          if (trick.id !== currentTrickRef.current?.id) { rt('tricks UPDATE → ignored (wrong trick)'); return }
           setCurrentTrick(trick)
           if (trick.winner_id) {
             setTricksWon((prev) => ({
@@ -237,17 +252,14 @@ export function GameShell({
             }))
             const direction = trick.winner_id === userId ? 'down' : 'up'
             const roundId = trick.round_id ?? roundRef.current?.id ?? ''
-            // Gate INSERT handler immediately so cards aren't cleared during the pause
             trickAnimationRef.current = direction
-            // Phase 1: pause 700ms so players can see all cards
+            rt('tricks UPDATE → winner set, starting animation pause', { direction, roundId })
             setTimeout(() => {
-              // Phase 2: trigger CSS translate animation (700ms duration)
               setTrickAnimation(direction)
               setTimeout(async () => {
                 setTrickAnimation(null)
                 trickAnimationRef.current = null
                 setTrickCards([])
-                // Fallback: if tricks INSERT was dropped, actively fetch the next incomplete trick
                 if (roundId) {
                   const sb = createClient()
                   const { data: nextTrick } = await sb
@@ -256,6 +268,7 @@ export function GameShell({
                     .eq('round_id', roundId)
                     .is('winner_id', null)
                     .maybeSingle()
+                  rt('tricks UPDATE fallback fetch', { nextTrick })
                   if (nextTrick) {
                     setCurrentTrick(nextTrick as Trick)
                     setTrickCards([])
@@ -271,8 +284,9 @@ export function GameShell({
         { event: 'INSERT', schema: 'public', table: 'trick_cards' },
         (payload) => {
           const tc = payload.new as { trick_id: string; player_id: string; suit: string; value: string }
-          if (tc.trick_id !== currentTrickRef.current?.id) return
-          const displayName = playerMap[tc.player_id]?.displayName ?? 'Player'
+          rt('trick_cards INSERT', { trick_id: tc.trick_id, player_id: tc.player_id, currentTrickId: currentTrickRef.current?.id })
+          if (tc.trick_id !== currentTrickRef.current?.id) { rt('trick_cards INSERT → ignored (wrong trick)'); return }
+          const displayName = playerMapRef.current[tc.player_id]?.displayName ?? 'Player'
           setTrickCards((prev) =>
             prev.some((c) => c.playerId === tc.player_id)
               ? prev
@@ -285,6 +299,7 @@ export function GameShell({
         { event: 'INSERT', schema: 'public', table: 'round_scores' },
         (payload) => {
           const rs = payload.new as RoundScore
+          rt('round_scores INSERT', { player_id: rs.player_id, score: rs.score })
           setCumulativeScores((prev) => ({
             ...prev,
             [rs.player_id]: (prev[rs.player_id] ?? 0) + rs.score,
@@ -292,10 +307,16 @@ export function GameShell({
           setSummaryRoundScores((prev) => ({ ...prev, [rs.player_id]: rs.score }))
         }
       )
-      .subscribe()
+      .subscribe((status, err) => {
+        rt('channel status:', status, err ?? '')
+      })
 
     return () => { supabase.removeChannel(channel) }
-  }, [gameId, playerMap, router])
+  // playerMap intentionally excluded: it's stable (players don't change mid-game)
+  // and was causing the channel to tear down on every state update.
+  // playerMapRef gives the handler access to the latest value without re-subscribing.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId, router])
 
   function handleCardPlayed(card: Card) {
     setHand((prev) => prev.filter((c) => !(c.suit === card.suit && c.value === card.value)))
