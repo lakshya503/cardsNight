@@ -5,14 +5,16 @@ interface PlayerScore {
   displayName: string
   total: number
   currentBid?: number
+  tricksWon: number
 }
 
 interface Props {
   scores: PlayerScore[]
   currentRoundNumber: number
+  isPlaying: boolean
 }
 
-export function Scoreboard({ scores, currentRoundNumber }: Props) {
+export function Scoreboard({ scores, currentRoundNumber, isPlaying }: Props) {
   const sorted = [...scores].sort((a, b) => b.total - a.total)
 
   return (
@@ -29,7 +31,9 @@ export function Scoreboard({ scores, currentRoundNumber }: Props) {
             </div>
             <div className="flex items-center gap-3 text-sm">
               {s.currentBid !== undefined && (
-                <span className="text-slate-400">bid {s.currentBid}</span>
+                <span className="text-slate-400">
+                  {isPlaying ? `${s.tricksWon}/${s.currentBid}` : `bid ${s.currentBid}`}
+                </span>
               )}
               <span className="font-bold tabular-nums">{s.total}</span>
             </div>

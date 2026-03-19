@@ -85,6 +85,21 @@ export default async function GamePage({ params }: PageProps) {
     }
   }
 
+  // Compute tricks won per player in the current round (completed tricks only)
+  const initialTricksWon: Record<string, number> = {}
+  if (round?.status === 'playing') {
+    const { data: completedTricks } = await admin
+      .from('tricks')
+      .select('winner_id')
+      .eq('round_id', round.id)
+      .not('winner_id', 'is', null)
+    for (const t of completedTricks ?? []) {
+      if (t.winner_id) {
+        initialTricksWon[t.winner_id] = (initialTricksWon[t.winner_id] ?? 0) + 1
+      }
+    }
+  }
+
   // Fetch current trick (latest without a winner) and its cards
   let currentTrick: { id: string; trick_number: number; led_suit: string | null; winner_id: string | null } | null = null
   let trickCards: Array<{ playerId: string; displayName: string; suit: string; value: string }> = []
@@ -124,6 +139,7 @@ export default async function GamePage({ params }: PageProps) {
       initialCurrentTrick={currentTrick}
       initialTrickCards={trickCards}
       initialCumulativeScores={cumulativeScores}
+      initialTricksWon={initialTricksWon}
       players={playerList}
     />
   )

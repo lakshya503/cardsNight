@@ -66,6 +66,7 @@ interface Props {
   initialCurrentTrick: Trick | null
   initialTrickCards: TrickCardDisplay[]
   initialCumulativeScores: Record<string, number>
+  initialTricksWon: Record<string, number>
   players: Player[]
 }
 
@@ -78,6 +79,7 @@ export function GameShell({
   initialCurrentTrick,
   initialTrickCards,
   initialCumulativeScores,
+  initialTricksWon,
   players,
 }: Props) {
   const router = useRouter()
@@ -88,6 +90,7 @@ export function GameShell({
   const [currentTrick, setCurrentTrick] = useState<Trick | null>(initialCurrentTrick)
   const [trickCards, setTrickCards] = useState<TrickCardDisplay[]>(initialTrickCards)
   const [cumulativeScores, setCumulativeScores] = useState<Record<string, number>>(initialCumulativeScores)
+  const [tricksWon, setTricksWon] = useState<Record<string, number>>(initialTricksWon)
 
   const roundRef = useRef<Round | null>(initialRound)
   const currentTrickRef = useRef<Trick | null>(initialCurrentTrick)
@@ -123,6 +126,7 @@ export function GameShell({
             setTrickCards([])
             setCurrentTrick(null)
             setHand([])
+            setTricksWon({})
           }
           setRound(updated)
         }
@@ -160,6 +164,12 @@ export function GameShell({
           const trick = payload.new as Trick
           if (trick.id === currentTrickRef.current?.id) {
             setCurrentTrick(trick)
+            if (trick.winner_id) {
+              setTricksWon((prev) => ({
+                ...prev,
+                [trick.winner_id!]: (prev[trick.winner_id!] ?? 0) + 1,
+              }))
+            }
           }
         }
       )
@@ -235,6 +245,7 @@ export function GameShell({
     displayName: p.displayName,
     total: cumulativeScores[p.userId] ?? 0,
     currentBid: bids.find((b) => b.player_id === p.userId)?.amount,
+    tricksWon: tricksWon[p.userId] ?? 0,
   }))
 
   function getBidLabel(playerId: string) {
@@ -259,7 +270,7 @@ export function GameShell({
       <div className="flex-1 flex flex-col max-w-lg mx-auto w-full px-4 py-4 gap-4">
 
         {/* Scoreboard */}
-        <Scoreboard scores={scoreboardData} currentRoundNumber={round?.round_number ?? 1} />
+        <Scoreboard scores={scoreboardData} currentRoundNumber={round?.round_number ?? 1} isPlaying={isPlaying} />
 
         {/* ── Opponent row (top) ─────────────────────────── */}
         <div className="flex justify-center gap-4">
