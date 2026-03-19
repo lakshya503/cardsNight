@@ -92,6 +92,9 @@ export function GameShell({
   const [cumulativeScores, setCumulativeScores] = useState<Record<string, number>>(initialCumulativeScores)
   const [tricksWon, setTricksWon] = useState<Record<string, number>>(initialTricksWon)
   const [trickAnimation, setTrickAnimation] = useState<'up' | 'down' | null>(null)
+  const [lastRoundScores, setLastRoundScores] = useState<Record<string, number>>({})
+  const [showRoundSummary, setShowRoundSummary] = useState(false)
+  const [summaryRoundNumber, setSummaryRoundNumber] = useState<number | null>(null)
 
   const roundRef = useRef<Round | null>(initialRound)
   const currentTrickRef = useRef<Trick | null>(initialCurrentTrick)
@@ -112,6 +115,8 @@ export function GameShell({
     setTrickCards(initialTrickCards)
     setTricksWon(initialTricksWon)
     setTrickAnimation(null)
+    setShowRoundSummary(false)
+    setLastRoundScores({})
     roundRef.current = initialRound
     currentTrickRef.current = initialCurrentTrick
   }, [initialRound?.id])
@@ -140,11 +145,18 @@ export function GameShell({
         (payload) => {
           const updated = payload.new as Round
           if (updated.id !== roundRef.current?.id) {
+            // New round starting — dismiss summary and reset per-round state
+            setShowRoundSummary(false)
+            setLastRoundScores({})
             setBids([])
             setTrickCards([])
             setCurrentTrick(null)
             setHand([])
             setTricksWon({})
+          } else if (updated.status === 'complete' && roundRef.current?.status !== 'complete') {
+            // This round just completed — show the summary overlay
+            setSummaryRoundNumber(updated.round_number)
+            setShowRoundSummary(true)
           }
           setRound(updated)
         }
@@ -236,6 +248,7 @@ export function GameShell({
             ...prev,
             [rs.player_id]: (prev[rs.player_id] ?? 0) + rs.score,
           }))
+          setLastRoundScores((prev) => ({ ...prev, [rs.player_id]: rs.score }))
         }
       )
       .subscribe()
@@ -464,6 +477,63 @@ export function GameShell({
         )}
 
       </div>
+
+      {/* ── Round summary overlay ─────────────────────────── */}
+      {showRoundSummary && summaryRoundNumber !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+          onClick={() => setShowRoundSummary(false)}
+        >
+          <div
+            className="bg-slate-800 rounded-2xl shadow-2xl p-6 mx-4 w-full max-w-sm animate-in slide-in-from-bottom-8 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-bold text-center mb-1">Round {summaryRoundNumber} complete</h2>
+            <p className="text-xs text-slate-400 text-center mb-5">Tap anywhere to continue</p>
+
+            <div className="space-y-3">
+              {players
+                .slice()
+                .sort((a, b) => (cumulativeScores[b.userId] ?? 0) - (cumulativeScores[a.userId] ?? 0))
+                .map((p) => {
+                  const roundScore = lastRoundScores[p.userId] ?? 0
+                  const total = cumulativeScores[p.userId] ?? 0
+                  const bid = bids.find((b) => b.player_id === p.userId)?.amount
+                  const wonCount = tricksWon[p.userId] ?? 0
+                  const exactBid = bid !== undefined && wonCount === bid
+                  return (
+                    <div key={p.userId} className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold shrink-0">
+                          {p.displayName[0].toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{p.displayName}</p>
+                          {bid !== undefined && (
+                            <p className="text-xs text-slate-400">
+                              {wonCount}/{bid} tricks
+                              {exactBid && <span className="ml-1 text-emerald-400">✓ exact</span>}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={`text-base font-bold tabular-nums ${roundScore > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                          {roundScore > 0 ? `+${roundScore}` : '+0'}
+                        </p>
+                        <p className="text-xs text-slate-400 tabular-nums">{total} total</p>
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+
+            <div className="mt-5 pt-4 border-t border-slate-700 text-center">
+              <p className="text-xs text-slate-500">Next round starting soon…</p>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
