@@ -337,15 +337,6 @@ describe('POST /api/games/[gameId]/play', () => {
     // player-1 wins trick (A beats 3), so next round's first bidder/leader must be player-1
     // Seat rotation would yield playerIds[getStartingBidderIndex(2, 2)] = playerIds[1] = 'player-2'
     // The fix should pass winnerId ('player-1') instead
-    const roundInsertCall = (adminMock.from as ReturnType<typeof vi.fn>).mock.calls
-      .filter(([table]: [string]) => table === 'rounds')
-      .map(([, ]: [string, unknown]) => adminMock.from.mock.results[
-        (adminMock.from as ReturnType<typeof vi.fn>).mock.calls.findIndex(
-          (c: unknown[]) => c === (adminMock.from as ReturnType<typeof vi.fn>).mock.calls
-            .filter(([t]: [string]) => t === 'rounds')
-            .find((c: unknown[]) => c === c)
-        )
-      ])
 
     // Capture the insert argument directly from the mock chain
     // The rounds insert is called as: admin.from('rounds').insert({...}).select('id').single()
