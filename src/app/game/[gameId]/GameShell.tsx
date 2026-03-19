@@ -8,6 +8,29 @@ import { TrickPanel } from './TrickPanel'
 import { Scoreboard } from './Scoreboard'
 import type { Card, Suit, CardValue } from '@/lib/game/types'
 
+function TrickProgress({ won, bid }: { won: number; bid: number }) {
+  if (bid === 0) {
+    return (
+      <span className={`text-xs font-medium ${won === 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+        {won === 0 ? '0 bid ✓' : `${won} won (busted)`}
+      </span>
+    )
+  }
+  const pct = Math.min((won / bid) * 100, 100)
+  const over = won > bid
+  return (
+    <div className="w-full flex flex-col items-center gap-0.5">
+      <span className="text-xs text-slate-400 tabular-nums">{won}/{bid}</span>
+      <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${over ? 'bg-amber-400' : 'bg-emerald-400'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
 const SUIT_SYMBOL: Record<string, string> = {
   hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠',
 }
@@ -102,7 +125,8 @@ export function GameShell({
 
   useEffect(() => { roundRef.current = round }, [round])
   useEffect(() => { currentTrickRef.current = currentTrick }, [currentTrick])
-  useEffect(() => { trickAnimationRef.current = trickAnimation }, [trickAnimation])
+  // Note: trickAnimationRef is managed manually in the tricks UPDATE handler
+  // to gate the INSERT handler immediately (before React re-renders trickAnimation state)
 
   // Sync all client state when server provides a new round (after router.refresh())
   // useState initial values don't update on prop changes, so we sync explicitly.
@@ -200,28 +224,34 @@ export function GameShell({
               ...prev,
               [trick.winner_id!]: (prev[trick.winner_id!] ?? 0) + 1,
             }))
-            // Animate cards toward the winner, then clear + fetch next trick as Realtime fallback
             const direction = trick.winner_id === userId ? 'down' : 'up'
-            setTrickAnimation(direction)
             const roundId = trick.round_id ?? roundRef.current?.id ?? ''
-            setTimeout(async () => {
-              setTrickAnimation(null)
-              setTrickCards([])
-              // Fallback: if tricks INSERT was dropped, actively fetch the next incomplete trick
-              if (roundId) {
-                const sb = createClient()
-                const { data: nextTrick } = await sb
-                  .from('tricks')
-                  .select('id, trick_number, led_suit, winner_id')
-                  .eq('round_id', roundId)
-                  .is('winner_id', null)
-                  .maybeSingle()
-                if (nextTrick) {
-                  setCurrentTrick(nextTrick as Trick)
-                  setTrickCards([])
+            // Gate INSERT handler immediately so cards aren't cleared during the pause
+            trickAnimationRef.current = direction
+            // Phase 1: pause 700ms so players can see all cards
+            setTimeout(() => {
+              // Phase 2: trigger CSS translate animation (700ms duration)
+              setTrickAnimation(direction)
+              setTimeout(async () => {
+                setTrickAnimation(null)
+                trickAnimationRef.current = null
+                setTrickCards([])
+                // Fallback: if tricks INSERT was dropped, actively fetch the next incomplete trick
+                if (roundId) {
+                  const sb = createClient()
+                  const { data: nextTrick } = await sb
+                    .from('tricks')
+                    .select('id, trick_number, led_suit, winner_id')
+                    .eq('round_id', roundId)
+                    .is('winner_id', null)
+                    .maybeSingle()
+                  if (nextTrick) {
+                    setCurrentTrick(nextTrick as Trick)
+                    setTrickCards([])
+                  }
                 }
-              }
-            }, 900)
+              }, 700)
+            }, 700)
           }
         }
       )
@@ -297,8 +327,6 @@ export function GameShell({
     userId: p.userId,
     displayName: p.displayName,
     total: cumulativeScores[p.userId] ?? 0,
-    currentBid: bids.find((b) => b.player_id === p.userId)?.amount,
-    tricksWon: tricksWon[p.userId] ?? 0,
   }))
 
   function getBidLabel(playerId: string) {
@@ -323,7 +351,7 @@ export function GameShell({
       <div className="flex-1 flex flex-col max-w-lg mx-auto w-full px-4 py-4 gap-4">
 
         {/* Scoreboard */}
-        <Scoreboard scores={scoreboardData} currentRoundNumber={round?.round_number ?? 1} isPlaying={isPlaying} />
+        <Scoreboard scores={scoreboardData} currentRoundNumber={round?.round_number ?? 1} />
 
         {/* ── Opponent row (top) ─────────────────────────── */}
         <div className="flex justify-center gap-4">
@@ -340,10 +368,10 @@ export function GameShell({
                 <span className="text-sm font-medium">{p.displayName}</span>
                 {label && <span className="text-xs text-slate-400">{label}</span>}
                 {isPlaying && bids.find((b) => b.player_id === p.userId) !== undefined && (
-                  <span className="text-sm font-bold tabular-nums">
-                    {tricksWon[p.userId] ?? 0}
-                    <span className="text-slate-500 font-normal">/{bids.find((b) => b.player_id === p.userId)!.amount}</span>
-                  </span>
+                  <TrickProgress
+                    won={tricksWon[p.userId] ?? 0}
+                    bid={bids.find((b) => b.player_id === p.userId)!.amount}
+                  />
                 )}
               </div>
             )
@@ -398,12 +426,19 @@ export function GameShell({
         <div className="flex flex-col gap-3">
 
           {/* Your identity + bid status */}
-          <div className="flex items-center gap-2 justify-center">
-            <span className="text-sm font-medium">{me?.displayName ?? 'You'}</span>
-            {myBid !== undefined && (
-              <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
-                {isPlaying ? `${tricksWon[userId] ?? 0}/${myBid}` : `bid ${myBid}`}
-              </span>
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{me?.displayName ?? 'You'}</span>
+              {myBid !== undefined && !isPlaying && (
+                <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
+                  bid {myBid}
+                </span>
+              )}
+            </div>
+            {myBid !== undefined && isPlaying && (
+              <div className="w-32">
+                <TrickProgress won={tricksWon[userId] ?? 0} bid={myBid} />
+              </div>
             )}
           </div>
 
@@ -415,7 +450,6 @@ export function GameShell({
                 // Clickable hand inside TrickPanel during play phase
                 <TrickPanel
                   gameId={gameId}
-                  round={round!}
                   hand={hand}
                   trickCards={trickCards}
                   isMyTurn={isMyTurn}

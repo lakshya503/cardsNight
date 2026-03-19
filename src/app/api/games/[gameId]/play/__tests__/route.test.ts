@@ -62,6 +62,9 @@ function makeAdminMock({
   // Scoring-path additions (only reached when last card of last trick)
   roundBids = [] as Array<{ player_id: string; amount: number }>,
   completedTricks = [] as Array<{ winner_id: string | null }>,
+  // Game-completion-path additions (only reached when hand_size === 1)
+  allGameRoundIds = [] as Array<{ id: string }>,
+  allGameScores = [] as Array<{ player_id: string; score: number }>,
 } = {}) {
   // games
   const gameMaybeSingle = vi.fn().mockResolvedValue({ data: game })
@@ -145,19 +148,43 @@ function makeAdminMock({
   // round_scores INSERT (scoring path)
   const rsInsert = vi.fn().mockResolvedValue({ error: null })
 
+  // game_results INSERT (game completion path)
+  const gameResultsInsert = vi.fn().mockResolvedValue({ error: null })
+
+  // games UPDATE (game completion path)
+  const gamesUpdateEq = vi.fn().mockResolvedValue({ error: null })
+  const gamesUpdate = vi.fn().mockReturnValue({ eq: gamesUpdateEq })
+
+  // rounds SELECT all IDs for game (game completion path): .select('id').eq('game_id', ...)
+  const allRoundsEq = vi.fn().mockResolvedValue({ data: allGameRoundIds })
+  const allRoundsSelect = vi.fn().mockReturnValue({ eq: allRoundsEq })
+
+  // round_scores SELECT all for game (game completion path): .select().in()
+  const rsSelectIn = vi.fn().mockResolvedValue({ data: allGameScores })
+  const rsSelect = vi.fn().mockReturnValue({ in: rsSelectIn })
+
   let rpCallCount = 0
   let tcSelectCallCount = 0
   let tricksCallCount = 0
+  let roundsSelectCallCount = 0
+  let rsCallCount = 0
 
   const fromMock = vi.fn().mockImplementation((table: string) => {
-    if (table === 'games') return { select: gameSelect }
+    if (table === 'games') return { select: gameSelect, update: gamesUpdate }
+    if (table === 'game_results') return { insert: gameResultsInsert }
     if (table === 'room_players') {
       const idx = rpCallCount++
       if (idx === 0) return { select: rpMemberSelect }
       if (idx === 1) return { select: rpListSelect }
       return { update: rpUpdate }
     }
-    if (table === 'rounds') return { select: roundSelect, update: roundUpdate, insert: roundInsert }
+    if (table === 'rounds') {
+      const idx = roundsSelectCallCount++
+      // Call 0: playing-round SELECT (order/limit/maybeSingle)
+      // Call 1: all round IDs for game (game completion path — just .eq())
+      if (idx === 0) return { select: roundSelect, update: roundUpdate, insert: roundInsert }
+      return { select: allRoundsSelect, update: roundUpdate, insert: roundInsert }
+    }
     if (table === 'tricks') {
       const idx = tricksCallCount++
       if (idx === 0) return { select: tricksAllSelect, update: tricksUpdate, insert: tricksInsert }
@@ -172,7 +199,11 @@ function makeAdminMock({
       return { insert: tcInsert } // idx 2: the INSERT
     }
     if (table === 'bids') return { select: bidsSelect }
-    if (table === 'round_scores') return { insert: rsInsert }
+    if (table === 'round_scores') {
+      const idx = rsCallCount++
+      if (idx === 0) return { insert: rsInsert }  // scoring: INSERT
+      return { select: rsSelect }                  // game completion: SELECT all scores
+    }
     throw new Error(`Unexpected table: ${table}`)
   })
 
@@ -303,6 +334,43 @@ describe('POST /api/games/[gameId]/play', () => {
     const body = await res.json()
     expect(body.status).toBe('round_complete')
     expect(body.winnerId).toBe('player-1')
+  })
+
+  it('returns 200 game_complete on the last trick of the last round (hand_size=1)', async () => {
+    // This is the scenario that was broken: hand_size=1 means there is only one trick.
+    // When the last card is played the route must:
+    //   1. score the round  (round_scores INSERT)
+    //   2. update round to 'complete'  ← was failing because DB constraint said 'finished'
+    //   3. fetch all round scores and insert game_results
+    //   4. update game to 'finished'
+    //   5. return { status: 'game_complete' }
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock({ id: 'player-2' }))
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(
+      makeAdminMock({
+        round: { ...DEFAULT_ROUND, hand_size: 1, current_player_id: 'player-2' },
+        allTricks: [
+          { id: 'trick-1', trick_number: 1, led_suit: 'hearts', winner_id: null },
+        ],
+        handRow: { cards: [{ suit: 'hearts', value: '3' }] },
+        playedByPlayer: [],
+        existingTrickCards: [{ player_id: 'player-1', suit: 'hearts', value: 'A' }],
+        roundBids: [
+          { player_id: 'player-1', amount: 1 },
+          { player_id: 'player-2', amount: 0 },
+        ],
+        completedTricks: [], // none yet — the current trick hasn't been counted yet in this query
+        allGameRoundIds: [{ id: 'round-id' }],
+        allGameScores: [
+          { player_id: 'player-1', score: 10 },
+          { player_id: 'player-2', score: 10 },
+        ],
+      })
+    )
+    const res = await POST(makeRequest('game-id', { suit: 'hearts', value: '3' }), makeParams())
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).toBe('game_complete')
+    expect(body.winnerId).toBe('player-1') // A beats 3
   })
 
   it('sets next round current_player_id to the trick winner, not seat rotation', async () => {

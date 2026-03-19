@@ -11,14 +11,8 @@ interface TrickCardDisplay {
   value: string
 }
 
-interface Round {
-  id: string
-  trump_suit: string
-}
-
 interface Props {
   gameId: string
-  round: Round
   hand: Card[]
   trickCards: TrickCardDisplay[]
   isMyTurn: boolean
@@ -44,7 +38,7 @@ const SUIT_COLOR: Record<string, string> = {
   spades: 'text-slate-900',
 }
 
-export function TrickPanel({ gameId, round, hand, trickCards, isMyTurn, currentPlayerName, onCardPlayed, ledSuit, handOnly = false }: Props) {
+export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerName, onCardPlayed, ledSuit, handOnly = false }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -102,7 +96,7 @@ export function TrickPanel({ gameId, round, hand, trickCards, isMyTurn, currentP
       {/* Hand or waiting state */}
       {isMyTurn ? (
         <div className="p-4 bg-slate-800 rounded-lg">
-          <p className="text-sm text-slate-400 mb-3">Your hand · Trump: {round.trump_suit}</p>
+          <p className="text-sm text-slate-400 mb-3">Your hand</p>
           <div className="flex flex-wrap gap-2">
             {hand.map((card) => {
               const isValid = validatePlay(card, hand, ledSuit)
@@ -132,7 +126,7 @@ export function TrickPanel({ gameId, round, hand, trickCards, isMyTurn, currentP
         </div>
       ) : (
         <div className="p-4 bg-slate-800 rounded-lg">
-          <p className="text-sm text-slate-400 mb-3">Your hand · Trump: {round.trump_suit}</p>
+          <p className="text-sm text-slate-400 mb-3">Your hand</p>
           <div className="flex flex-wrap gap-2 mb-4">
             {hand.map((card) => (
               <div
