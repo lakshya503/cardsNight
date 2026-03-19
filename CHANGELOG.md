@@ -67,6 +67,18 @@ M2 goal: 4+ friends play a complete game of Judgement with correct rules, scorin
 
 ---
 
+## [Deployment Prep] — 2026-03-19
+
+### Fixed
+- `MIN_PLAYERS` reverted from dev-only value of `2` back to `4` (PRD minimum); updated related unit tests
+- `[RT]` Realtime diagnostic logs gated behind `NODE_ENV === 'development'` — were logging all game state to browser console in production
+- Realtime channel torn down on every render: `playerMap` (computed inline) was in the `useEffect` dep array causing the channel to tear down and re-subscribe on every state update; fixed with `useMemo` and `playerMapRef`
+
+### Added
+- `NEXT_PUBLIC_SITE_URL` env var required for production OAuth callback — must be set in Vercel to the deployed app URL (fallback of `http://localhost:3000` is safe for local dev only)
+
+---
+
 ## [M2 Gameplay Polish] — 2026-03-19 (ongoing)
 
 ### Fixed
