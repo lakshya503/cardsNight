@@ -34,6 +34,8 @@ function makeAdminMock({
   activePlayers = [
     { id: 'rp-1', user_id: 'user-1' },
     { id: 'rp-2', user_id: 'user-2' },
+    { id: 'rp-3', user_id: 'user-3' },
+    { id: 'rp-4', user_id: 'user-4' },
   ] as Array<{ id: string; user_id: string }>,
   gameData = { id: 'game-id' } as { id: string } | null,
   gameError = null as unknown,

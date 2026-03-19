@@ -167,7 +167,9 @@ export function GameShell({
 
   useEffect(() => {
     const supabase = createClient()
-    const rt = (...args: unknown[]) => console.log('[RT]', ...args)
+    const rt = process.env.NODE_ENV === 'development'
+      ? (...args: unknown[]) => console.log('[RT]', ...args)
+      : () => {}
 
     const channel = supabase
       .channel(`game:${gameId}`)
