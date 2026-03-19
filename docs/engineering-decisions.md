@@ -213,15 +213,28 @@ All API routes added in M2 (`bid`, `play`, `hand`, `start`) use `createAdminClie
 ---
 
 ### Stable Realtime channel pattern (refs over state in deps)
-`GameShell` subscribes to all game tables in a single `useEffect` with `[gameId]` as the only dependency. Game state (`round`, `currentTrick`) is accessed inside event handlers via `useRef`, not read from the closure.
+`GameShell` subscribes to all game tables in a single `useEffect` with `[gameId, router]` as the only dependencies. All game state accessed inside event handlers uses `useRef`, not the closure value.
 
-**Why:** If `round` or `currentTrick` were in `useEffect` deps, the channel would tear down and re-subscribe on every state change. This creates a window where events are missed. Using refs gives event handlers access to the latest state without triggering re-subscription.
+**Why:** Any object in the `useEffect` dep array that changes reference on re-render causes the channel to tear down and re-subscribe. During that brief window, Realtime events are silently dropped — this manifested as players needing to manually refresh after moves.
+
+**Critical example of what went wrong:** `playerMap` was computed inline as `Object.fromEntries(players.map(...))`. Every render produced a new object reference. With `playerMap` in the deps, every state update (bid placed, card played, etc.) tore down the entire channel.
+
+**Rule:** Every value used inside the Realtime `useEffect` must either be:
+1. In the deps array AND stable across renders (primitives, stable refs), OR
+2. Accessed via a `useRef` and excluded from deps
 
 **Pattern:**
 ```ts
+const playerMap = useMemo(() => Object.fromEntries(players.map(...)), [players])
+const playerMapRef = useRef(playerMap)
+useEffect(() => { playerMapRef.current = playerMap }, [playerMap])
+
 const roundRef = useRef(initialRound)
 useEffect(() => { roundRef.current = round }, [round])
-// useEffect([gameId]) — channel never recreates during gameplay
+
+// eslint-disable-next-line react-hooks/exhaustive-deps
+useEffect(() => { /* channel setup */ }, [gameId, router])
+// channel never recreates during gameplay
 ```
 
 ---
