@@ -115,21 +115,31 @@ export function GameShell({
   const [cumulativeScores, setCumulativeScores] = useState<Record<string, number>>(initialCumulativeScores)
   const [tricksWon, setTricksWon] = useState<Record<string, number>>(initialTricksWon)
   const [trickAnimation, setTrickAnimation] = useState<'up' | 'down' | null>(null)
-  const [lastRoundScores, setLastRoundScores] = useState<Record<string, number>>({})
-  const [showRoundSummary, setShowRoundSummary] = useState(false)
+  // Snapshot captured at round-complete time; stays frozen while the overlay is shown
   const [summaryRoundNumber, setSummaryRoundNumber] = useState<number | null>(null)
+  const [summaryTricksWon, setSummaryTricksWon] = useState<Record<string, number>>({})
+  const [summaryBids, setSummaryBids] = useState<Bid[]>([])
+  const [summaryRoundScores, setSummaryRoundScores] = useState<Record<string, number>>({})
+  const [showRoundSummary, setShowRoundSummary] = useState(false)
 
   const roundRef = useRef<Round | null>(initialRound)
   const currentTrickRef = useRef<Trick | null>(initialCurrentTrick)
   const trickAnimationRef = useRef<'up' | 'down' | null>(null)
+  // Refs so Realtime handlers can snapshot current state without stale closures
+  const tricksWonRef = useRef<Record<string, number>>(initialTricksWon)
+  const bidsRef = useRef<Bid[]>(initialBids)
 
   useEffect(() => { roundRef.current = round }, [round])
   useEffect(() => { currentTrickRef.current = currentTrick }, [currentTrick])
+  useEffect(() => { tricksWonRef.current = tricksWon }, [tricksWon])
+  useEffect(() => { bidsRef.current = bids }, [bids])
   // Note: trickAnimationRef is managed manually in the tricks UPDATE handler
   // to gate the INSERT handler immediately (before React re-renders trickAnimation state)
 
-  // Sync all client state when server provides a new round (after router.refresh())
+  // Sync all client state when server provides a new round (after router.refresh()).
   // useState initial values don't update on prop changes, so we sync explicitly.
+  // We intentionally do NOT reset showRoundSummary here — the overlay stays visible
+  // until the user taps to dismiss, even after the new round's state has loaded.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setRound(initialRound)
@@ -139,8 +149,6 @@ export function GameShell({
     setTrickCards(initialTrickCards)
     setTricksWon(initialTricksWon)
     setTrickAnimation(null)
-    setShowRoundSummary(false)
-    setLastRoundScores({})
     roundRef.current = initialRound
     currentTrickRef.current = initialCurrentTrick
   }, [initialRound?.id])
@@ -169,17 +177,20 @@ export function GameShell({
         (payload) => {
           const updated = payload.new as Round
           if (updated.id !== roundRef.current?.id) {
-            // New round starting — dismiss summary and reset per-round state
-            setShowRoundSummary(false)
-            setLastRoundScores({})
+            // A different round is now current — reset per-round play state.
+            // We do NOT dismiss the summary here; it stays until the user taps.
             setBids([])
             setTrickCards([])
             setCurrentTrick(null)
             setHand([])
             setTricksWon({})
           } else if (updated.status === 'complete' && roundRef.current?.status !== 'complete') {
-            // This round just completed — show the summary overlay
+            // This round just completed — snapshot current state and show the summary overlay.
+            // round_scores INSERT events will populate summaryRoundScores as they arrive.
             setSummaryRoundNumber(updated.round_number)
+            setSummaryTricksWon({ ...tricksWonRef.current })
+            setSummaryBids([...bidsRef.current])
+            setSummaryRoundScores({})
             setShowRoundSummary(true)
           }
           setRound(updated)
@@ -278,7 +289,7 @@ export function GameShell({
             ...prev,
             [rs.player_id]: (prev[rs.player_id] ?? 0) + rs.score,
           }))
-          setLastRoundScores((prev) => ({ ...prev, [rs.player_id]: rs.score }))
+          setSummaryRoundScores((prev) => ({ ...prev, [rs.player_id]: rs.score }))
         }
       )
       .subscribe()
@@ -388,15 +399,15 @@ export function GameShell({
               <div
                 className={`w-20 h-28 rounded-xl bg-white shadow-lg flex flex-col items-center justify-center gap-1 select-none ${SUIT_COLOR[round.trump_suit]}`}
               >
-                <span className="text-lg font-bold leading-none">{round.trump_card_value}</span>
-                <span className="text-3xl leading-none">{SUIT_SYMBOL[round.trump_suit]}</span>
+                <span className="text-xl font-bold leading-none">{round.trump_card_value}</span>
+                <span className="text-4xl leading-none">{SUIT_SYMBOL[round.trump_suit]}</span>
               </div>
             </div>
           )}
 
           {/* Status message */}
           {statusMessage && (
-            <p className="text-slate-300 text-sm text-center px-4 py-2 bg-slate-800 rounded-lg">
+            <p className="text-amber-100 text-sm text-center px-4 py-2.5 bg-amber-900/50 border border-amber-700/40 rounded-lg font-medium">
               {statusMessage}
             </p>
           )}
@@ -410,7 +421,7 @@ export function GameShell({
               {trickCards.map((tc) => (
                 <div key={tc.playerId} className="flex flex-col items-center gap-1">
                   <div className="relative w-20 h-28 rounded-xl bg-white shadow-md flex flex-col p-1.5 select-none">
-                    <span className={`text-sm font-bold leading-none ${SUIT_COLOR[tc.suit]}`}>{tc.value}</span>
+                    <span className={`text-base font-bold leading-none ${SUIT_COLOR[tc.suit]}`}>{tc.value}</span>
                     <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[tc.suit]}`}>
                       {SUIT_SYMBOL[tc.suit]}
                     </div>
@@ -466,7 +477,7 @@ export function GameShell({
                       key={`${card.suit}:${card.value}`}
                       className="relative w-20 h-28 rounded-xl bg-white shadow-md flex flex-col p-1.5 select-none"
                     >
-                      <span className={`text-sm font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
+                      <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
                       <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
                         {SUIT_SYMBOL[card.suit]}
                       </div>
@@ -515,7 +526,7 @@ export function GameShell({
       {/* ── Round summary overlay ─────────────────────────── */}
       {showRoundSummary && summaryRoundNumber !== null && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-300"
           onClick={() => setShowRoundSummary(false)}
         >
           <div
@@ -530,10 +541,11 @@ export function GameShell({
                 .slice()
                 .sort((a, b) => (cumulativeScores[b.userId] ?? 0) - (cumulativeScores[a.userId] ?? 0))
                 .map((p) => {
-                  const roundScore = lastRoundScores[p.userId] ?? 0
+                  // Use snapshot data so it doesn't change as the new round loads
+                  const roundScore = summaryRoundScores[p.userId] ?? 0
                   const total = cumulativeScores[p.userId] ?? 0
-                  const bid = bids.find((b) => b.player_id === p.userId)?.amount
-                  const wonCount = tricksWon[p.userId] ?? 0
+                  const bid = summaryBids.find((b) => b.player_id === p.userId)?.amount
+                  const wonCount = summaryTricksWon[p.userId] ?? 0
                   const exactBid = bid !== undefined && wonCount === bid
                   return (
                     <div key={p.userId} className="flex items-center justify-between gap-3">
@@ -563,7 +575,12 @@ export function GameShell({
             </div>
 
             <div className="mt-5 pt-4 border-t border-slate-700 text-center">
-              <p className="text-xs text-slate-500">Next round starting soon…</p>
+              <button
+                onClick={() => setShowRoundSummary(false)}
+                className="text-sm text-slate-300 hover:text-white transition-colors"
+              >
+                Continue to next round →
+              </button>
             </div>
           </div>
         </div>

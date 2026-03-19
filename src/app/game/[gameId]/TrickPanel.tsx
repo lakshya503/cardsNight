@@ -114,7 +114,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
                     submitting ? 'opacity-50' : '',
                   ].join(' ')}
                 >
-                  <span className={`text-sm font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
+                  <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
                   <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
                     {SUIT_SYMBOL[card.suit]}
                   </div>
