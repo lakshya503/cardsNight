@@ -67,7 +67,7 @@ M2 goal: 4+ friends play a complete game of Judgement with correct rules, scorin
 
 ---
 
-## [M2 Gameplay Polish] — 2026-03-19
+## [M2 Gameplay Polish] — 2026-03-19 (ongoing)
 
 ### Fixed
 - Round summary overlay was being dismissed before the user saw it — `router.refresh()` (triggered by `rounds INSERT` Realtime event) ran the `useEffect` sync which called `setShowRoundSummary(false)`. Fixed by snapshotting `tricksWon` and `bids` into frozen summary state at round-complete time; overlay now uses snapshot data and is only dismissed by explicit user tap
@@ -79,7 +79,7 @@ M2 goal: 4+ friends play a complete game of Judgement with correct rules, scorin
 - Progress bar replacing N/M text badge under player names and opponents — green fill toward bid goal, amber if over bid, special display for bid=0
 - End-of-round summary overlay on round complete — shows each player's tricks/bid, round score (`+N`), and running total; frozen snapshot data so it stays correct even as next round loads
 - "Continue to next round →" button on round summary; overlay stays until explicitly dismissed
-- Trump suit highlight — thin amber ring (`ring-2 ring-amber-400/70`) on trump-suited cards in hand, applied during bidding, waiting, and play phases
+- Trump suit highlight — full amber ring + outer glow (`ring-2 ring-amber-400 shadow-[0_0_14px_3px_rgba(251,191,36,0.55)]`) on trump-suited cards in hand, applied during bidding, waiting, and play phases
 - Unit test: last trick of last round (hand_size=1) → `game_complete` response and `game_results` insert
 - Supabase migration: fix `rounds_status_check` constraint to use `'complete'` instead of `'finished'`
 
