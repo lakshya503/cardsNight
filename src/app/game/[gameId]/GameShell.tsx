@@ -91,12 +91,30 @@ export function GameShell({
   const [trickCards, setTrickCards] = useState<TrickCardDisplay[]>(initialTrickCards)
   const [cumulativeScores, setCumulativeScores] = useState<Record<string, number>>(initialCumulativeScores)
   const [tricksWon, setTricksWon] = useState<Record<string, number>>(initialTricksWon)
+  const [trickAnimation, setTrickAnimation] = useState<'up' | 'down' | null>(null)
 
   const roundRef = useRef<Round | null>(initialRound)
   const currentTrickRef = useRef<Trick | null>(initialCurrentTrick)
+  const trickAnimationRef = useRef<'up' | 'down' | null>(null)
 
   useEffect(() => { roundRef.current = round }, [round])
   useEffect(() => { currentTrickRef.current = currentTrick }, [currentTrick])
+  useEffect(() => { trickAnimationRef.current = trickAnimation }, [trickAnimation])
+
+  // Sync all client state when server provides a new round (after router.refresh())
+  // useState initial values don't update on prop changes, so we sync explicitly.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setRound(initialRound)
+    setBids(initialBids)
+    setHand(initialHand)
+    setCurrentTrick(initialCurrentTrick)
+    setTrickCards(initialTrickCards)
+    setTricksWon(initialTricksWon)
+    setTrickAnimation(null)
+    roundRef.current = initialRound
+    currentTrickRef.current = initialCurrentTrick
+  }, [initialRound?.id])
 
   const playerMap = Object.fromEntries(players.map((p) => [p.userId, p]))
   const me = playerMap[userId]
@@ -154,7 +172,8 @@ export function GameShell({
           const trick = payload.new as Trick
           if (trick.round_id !== roundRef.current?.id) return
           setCurrentTrick(trick)
-          setTrickCards([])
+          // Don't wipe trickCards mid-animation; the animation timeout clears them
+          if (!trickAnimationRef.current) setTrickCards([])
         }
       )
       .on(
@@ -162,14 +181,35 @@ export function GameShell({
         { event: 'UPDATE', schema: 'public', table: 'tricks' },
         (payload) => {
           const trick = payload.new as Trick
-          if (trick.id === currentTrickRef.current?.id) {
-            setCurrentTrick(trick)
-            if (trick.winner_id) {
-              setTricksWon((prev) => ({
-                ...prev,
-                [trick.winner_id!]: (prev[trick.winner_id!] ?? 0) + 1,
-              }))
-            }
+          if (trick.id !== currentTrickRef.current?.id) return
+          setCurrentTrick(trick)
+          if (trick.winner_id) {
+            setTricksWon((prev) => ({
+              ...prev,
+              [trick.winner_id!]: (prev[trick.winner_id!] ?? 0) + 1,
+            }))
+            // Animate cards toward the winner, then clear + fetch next trick as Realtime fallback
+            const direction = trick.winner_id === userId ? 'down' : 'up'
+            setTrickAnimation(direction)
+            const roundId = trick.round_id ?? roundRef.current?.id ?? ''
+            setTimeout(async () => {
+              setTrickAnimation(null)
+              setTrickCards([])
+              // Fallback: if tricks INSERT was dropped, actively fetch the next incomplete trick
+              if (roundId) {
+                const sb = createClient()
+                const { data: nextTrick } = await sb
+                  .from('tricks')
+                  .select('id, trick_number, led_suit, winner_id')
+                  .eq('round_id', roundId)
+                  .is('winner_id', null)
+                  .maybeSingle()
+                if (nextTrick) {
+                  setCurrentTrick(nextTrick as Trick)
+                  setTrickCards([])
+                }
+              }
+            }, 900)
           }
         }
       )
@@ -286,6 +326,12 @@ export function GameShell({
                 </div>
                 <span className="text-sm font-medium">{p.displayName}</span>
                 {label && <span className="text-xs text-slate-400">{label}</span>}
+                {isPlaying && bids.find((b) => b.player_id === p.userId) !== undefined && (
+                  <span className="text-sm font-bold tabular-nums">
+                    {tricksWon[p.userId] ?? 0}
+                    <span className="text-slate-500 font-normal">/{bids.find((b) => b.player_id === p.userId)!.amount}</span>
+                  </span>
+                )}
               </div>
             )
           })}
@@ -316,7 +362,10 @@ export function GameShell({
 
           {/* Current trick cards (during playing) */}
           {isPlaying && currentTrick && trickCards.length > 0 && (
-            <div className="flex gap-3">
+            <div className={`flex gap-3 transition-all duration-700 ${
+              trickAnimation === 'up' ? '-translate-y-24 opacity-0' :
+              trickAnimation === 'down' ? 'translate-y-24 opacity-0' : ''
+            }`}>
               {trickCards.map((tc) => (
                 <div key={tc.playerId} className="flex flex-col items-center gap-1">
                   <div className="relative w-20 h-28 rounded-xl bg-white shadow-md flex flex-col p-1.5 select-none">
@@ -340,7 +389,7 @@ export function GameShell({
             <span className="text-sm font-medium">{me?.displayName ?? 'You'}</span>
             {myBid !== undefined && (
               <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
-                bid {myBid}
+                {isPlaying ? `${tricksWon[userId] ?? 0}/${myBid}` : `bid ${myBid}`}
               </span>
             )}
           </div>
