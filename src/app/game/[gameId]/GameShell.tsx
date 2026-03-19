@@ -354,13 +354,13 @@ export function GameShell({
         <Scoreboard scores={scoreboardData} currentRoundNumber={round?.round_number ?? 1} />
 
         {/* ── Opponent row (top) ─────────────────────────── */}
-        <div className="flex justify-center gap-4">
+        <div className="flex flex-wrap justify-center gap-2">
           {opponents.map((p) => {
             const label = getBidLabel(p.userId)
             return (
               <div
                 key={p.userId}
-                className="flex flex-col items-center gap-1 px-4 py-3 bg-slate-800 rounded-xl min-w-[100px]"
+                className="flex flex-col items-center gap-1 px-3 py-2 bg-slate-800 rounded-xl w-[88px]"
               >
                 <div className="w-9 h-9 rounded-full bg-slate-600 flex items-center justify-center text-sm font-bold">
                   {p.displayName[0].toUpperCase()}
@@ -403,7 +403,7 @@ export function GameShell({
 
           {/* Current trick cards (during playing) */}
           {isPlaying && currentTrick && trickCards.length > 0 && (
-            <div className={`flex gap-3 transition-all duration-700 ${
+            <div className={`flex flex-wrap justify-center gap-2 transition-all duration-700 ${
               trickAnimation === 'up' ? '-translate-y-24 opacity-0' :
               trickAnimation === 'down' ? 'translate-y-24 opacity-0' : ''
             }`}>
@@ -519,13 +519,13 @@ export function GameShell({
           onClick={() => setShowRoundSummary(false)}
         >
           <div
-            className="bg-slate-800 rounded-2xl shadow-2xl p-6 mx-4 w-full max-w-sm animate-in slide-in-from-bottom-8 duration-300"
+            className="bg-slate-800 rounded-2xl shadow-2xl p-6 mx-4 w-full max-w-sm max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-8 duration-300"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-lg font-bold text-center mb-1">Round {summaryRoundNumber} complete</h2>
             <p className="text-xs text-slate-400 text-center mb-5">Tap anywhere to continue</p>
 
-            <div className="space-y-3">
+            <div className="space-y-3 overflow-y-auto flex-1">
               {players
                 .slice()
                 .sort((a, b) => (cumulativeScores[b.userId] ?? 0) - (cumulativeScores[a.userId] ?? 0))
