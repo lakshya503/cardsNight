@@ -293,9 +293,9 @@ describe('getTrickWinner', () => {
 // ---------------------------------------------------------------------------
 
 describe('scoreRound', () => {
-  it('awards 10 × bid for an exact bid', () => {
+  it('awards 10 + (10 × bid) for an exact bid', () => {
     const scores = scoreRound({ p1: 3 }, { p1: 3 })
-    expect(scores.p1).toBe(30)
+    expect(scores.p1).toBe(40)
   })
 
   it('awards 10 points for an exact bid of 0', () => {
@@ -318,7 +318,7 @@ describe('scoreRound', () => {
       { p1: 2, p2: 0, p3: 3 },
       { p1: 2, p2: 0, p3: 2 },
     )
-    expect(scores).toEqual({ p1: 20, p2: 10, p3: 0 })
+    expect(scores).toEqual({ p1: 30, p2: 10, p3: 0 })
   })
 })
 

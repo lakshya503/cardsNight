@@ -140,7 +140,8 @@ export function getTrickWinner(
 // Scoring
 // ---------------------------------------------------------------------------
 
-// Exact bid = 10 × bid; bid of 0 exact = 10 pts (not 0). Missed bid = 0 pts.
+// Exact bid = 10 + (10 × bid). Missed bid = 0 pts.
+// bid 0 = 10, bid 1 = 20, bid 2 = 30, bid 3 = 40, ...
 export function scoreRound(
   bids: Record<string, number>,
   tricksWon: Record<string, number>,
@@ -149,7 +150,7 @@ export function scoreRound(
   for (const playerId of Object.keys(bids)) {
     const bid = bids[playerId]
     const won = tricksWon[playerId] ?? 0
-    scores[playerId] = won === bid ? (bid === 0 ? 10 : bid * 10) : 0
+    scores[playerId] = won === bid ? 10 + bid * 10 : 0
   }
   return scores
 }

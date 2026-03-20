@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Scoring Formula Update] — 2026-03-19
+
+### Changed
+- Scoring formula updated from `10 × bid` (with bid-0 special-cased to 10) to `10 + (10 × bid)`
+  for all exact bids. bid 0 = 10 pts, bid 1 = 20 pts, bid 3 = 40 pts, etc. This eliminates
+  the parity between bid 0 and bid 1, and incentivizes higher bids throughout the game.
+
+---
+
 ## [RLS Recursion Fix] — 2026-03-19
 
 ### Fixed

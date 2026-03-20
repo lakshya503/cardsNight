@@ -78,7 +78,7 @@ Trick-taking card game, 4–10 players, one standard 52-card deck.
 - **Trump:** Determined each round by flipping the top card of the undealt deck; always visible to all players
 - **Bidding:** Players bid tricks in turn order; last bidder cannot bid the number that makes total bids equal cards dealt (restriction rule)
 - **Card play:** Must follow suit if possible; can cut (trump) or fuse (off-suit) if void in led suit
-- **Scoring:** Exact bid = 10 × bid (bid of 0 = 10 pts); any other outcome = 0 pts for that round
+- **Scoring:** Exact bid = 10 + (10 × bid) — bid 0 = 10 pts, bid 1 = 20 pts, bid 3 = 40 pts; any other outcome = 0 pts for that round
 - **Win condition:** Highest cumulative score after all rounds; ties are shared wins
 - **Player counts and starting hand sizes:**
   - 2–3 players → 10 cards
