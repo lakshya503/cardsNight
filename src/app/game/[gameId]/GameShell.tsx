@@ -325,12 +325,23 @@ export function GameShell({
       currentChannel = channel
     }
 
-    setup()
-
-    return () => {
-      active = false
-      if (currentChannel) supabase.removeChannel(currentChannel)
+  // createBrowserClient only calls realtime.setAuth() on auth state *transitions*
+  // (SIGNED_IN / TOKEN_REFRESHED). An existing cookie session on page load fires no
+  // state change, so the WebSocket connects without a JWT. Supabase then evaluates
+  // auth.uid() = null for every RLS policy → no events delivered even though the
+  // channel shows SUBSCRIBED. Manually inject the token before subscribing.
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!active) return
+    if (session?.access_token) {
+      supabase.realtime.setAuth(session.access_token)
     }
+    setup()
+  })
+
+  return () => {
+    active = false
+    if (currentChannel) supabase.removeChannel(currentChannel)
+  }
   // playerMap intentionally excluded: it's stable (players don't change mid-game)
   // and was causing the channel to tear down on every state update.
   // playerMapRef gives the handler access to the latest value without re-subscribing.
@@ -357,7 +368,7 @@ export function GameShell({
       ) {
         router.refresh()
       }
-    }, 8000)
+    }, 3000)
     return () => clearInterval(interval)
   }, [gameId, router])
 

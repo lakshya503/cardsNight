@@ -101,42 +101,44 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
   // Subscribe to room_players changes (player list) and rooms changes (game start)
   useEffect(() => {
     const supabase = createClient()
+    let channel: ReturnType<typeof supabase.channel> | null = null
 
-    const channel = supabase
-      .channel(`waiting-room-${room.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'room_players',
-          filter: `room_id=eq.${room.id}`,
-        },
-        () => refreshPlayers()
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'rooms',
-          filter: `id=eq.${room.id}`,
-        },
-        (payload) => {
-          const updated = payload.new as { status: string; current_game_id: string | null }
-          if (updated.status === 'in_progress' && updated.current_game_id) {
-            router.push(`/game/${updated.current_game_id}`)
+    // createBrowserClient only calls realtime.setAuth() on auth state *transitions*
+    // (SIGNED_IN / TOKEN_REFRESHED). An existing cookie session on page load fires no
+    // state change, so the WebSocket connects without a JWT. Supabase then evaluates
+    // auth.uid() = null for every RLS policy → no events delivered even though the
+    // channel shows SUBSCRIBED. Manually inject the token before subscribing.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.access_token) {
+        supabase.realtime.setAuth(session.access_token)
+      }
+
+      channel = supabase
+        .channel(`waiting-room-${room.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'room_players', filter: `room_id=eq.${room.id}` },
+          () => refreshPlayers()
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` },
+          (payload) => {
+            const updated = payload.new as { status: string; current_game_id: string | null }
+            if (updated.status === 'in_progress' && updated.current_game_id) {
+              router.push(`/game/${updated.current_game_id}`)
+            }
           }
-        }
-      )
-      .subscribe((status, err) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.error('[RT] WaitingRoom channel error (polling will cover):', err)
-        }
-      })
+        )
+        .subscribe((status, err) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('[RT] WaitingRoom channel error (polling will cover):', err)
+          }
+        })
+    })
 
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) supabase.removeChannel(channel)
     }
   }, [room.id, refreshPlayers, router])
 

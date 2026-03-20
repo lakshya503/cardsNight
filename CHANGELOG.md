@@ -8,9 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Realtime Fix] — 2026-03-19
 
 ### Fixed
-- GameShell Realtime channel now retries automatically on CHANNEL_ERROR/TIMED_OUT (2s delay) — was failing silently after client-side navigation from WaitingRoom closed the underlying WebSocket
-- Added 8s polling fallback in GameShell to detect and recover from any missed Realtime events
-- WaitingRoom subscribe callback now logs channel errors (existing polling fallback already covered this case)
+- **Root cause**: Supabase Realtime events silently blocked by RLS. `createBrowserClient` from `@supabase/ssr` only calls `realtime.setAuth()` on auth state transitions (SIGNED_IN / TOKEN_REFRESHED). Existing cookie sessions on page load fire no state change, so the WebSocket connected without a JWT — `auth.uid()` evaluated to null for all RLS policy checks and zero events were delivered even though channels showed SUBSCRIBED
+- Fixed by calling `supabase.auth.getSession()` + `supabase.realtime.setAuth(token)` before subscribing in both WaitingRoom and GameShell
+- GameShell Realtime channel retries on CHANNEL_ERROR/TIMED_OUT (2s delay)
+- GameShell polling fallback interval reduced from 8s to 3s
+- WaitingRoom subscribe callback logs channel errors (3s polling fallback already covers failures)
 
 ---
 
