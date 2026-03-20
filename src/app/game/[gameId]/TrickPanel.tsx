@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { validatePlay } from '@/lib/game/gameRules'
 import type { Card, Suit } from '@/lib/game/types'
 
@@ -104,16 +105,22 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
               const isValid = validatePlay(card, hand, ledSuit)
               const isTrump = card.suit === trumpSuit
               return (
-                <button
+                // motion.button gives us layout (reposition) + layoutId (fly to center)
+                <motion.button
                   key={`${card.suit}:${card.value}`}
+                  layout
+                  layoutId={`card-${card.suit}-${card.value}`}
                   onClick={() => playCard(card)}
                   disabled={!isValid || submitting}
                   aria-label={`Play ${card.value} of ${card.suit}`}
+                  whileHover={isValid ? { y: -8, scale: 1.04 } : {}}
+                  whileTap={isValid ? { scale: 0.97 } : {}}
+                  transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
                   className={[
                     'relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none transition-opacity',
                     isTrump ? 'ring-2 ring-amber-400 shadow-[0_0_20px_6px_rgba(251,191,36,0.75)]' : 'shadow-md',
                     isValid
-                      ? `hover:ring-2 hover:ring-indigo-400`
+                      ? 'hover:ring-2 hover:ring-indigo-400'
                       : 'opacity-40 cursor-not-allowed',
                     submitting ? 'opacity-50' : '',
                   ].join(' ')}
@@ -122,7 +129,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
                   <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
                     {SUIT_SYMBOL[card.suit]}
                   </div>
-                </button>
+                </motion.button>
               )
             })}
           </div>
@@ -133,15 +140,20 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
           <p className="text-sm text-slate-400 mb-3">Your hand</p>
           <div className="flex flex-wrap gap-2 mb-4">
             {hand.map((card) => (
-              <div
+              // layout + layoutId so cards slide into place and match the clickable render
+              // when isMyTurn flips, preventing a flash
+              <motion.div
                 key={`${card.suit}:${card.value}`}
+                layout
+                layoutId={`card-${card.suit}-${card.value}`}
+                transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
                 className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${card.suit === trumpSuit ? ' ring-2 ring-amber-400 shadow-[0_0_20px_6px_rgba(251,191,36,0.75)]' : ' shadow-md'}`}
               >
                 <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
                 <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
                   {SUIT_SYMBOL[card.suit]}
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
           <p className="text-slate-400 text-sm">

@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { copy } from '@/lib/ui/copy'
 import { signOut } from '@/app/auth/actions'
 import { MIN_PLAYERS } from '@/lib/game/validation'
+import { AnimatePresence, motion } from 'framer-motion'
 
 type Player = {
   userId: string
@@ -240,14 +241,19 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
             {copy.waitingRoom.heading}
           </h2>
 
+          <AnimatePresence>
           <div className="flex flex-col gap-2">
             {players.map((player) => {
               const isCurrentUser = player.userId === currentUserId
               const isRoomHost = player.userId === room.hostId
 
               return (
-                <div
+                <motion.div
                   key={player.userId}
+                  initial={{ x: -24, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: 24, opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 320, damping: 28 }}
                   className="flex items-center gap-3 px-4 py-3"
                   style={{
                     backgroundColor: 'var(--color-surface)',
@@ -305,10 +311,11 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
                       </span>
                     )}
                   </div>
-                </div>
+                </motion.div>
               )
             })}
           </div>
+          </AnimatePresence>
         </div>
 
         {/* Host controls / waiting message */}

@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Framer Motion Animations] — 2026-03-19
+
+### Added
+- **Framer Motion v12** installed as the animation library for all dynamic game moments
+- **Card fly from hand to center** (`layoutId` shared element transition) — when the current player plays a card, it glides from their hand to the trick center; other players see a scale-in entrance
+- **Trick sweep** — trick cards arc toward the winner with rotation and scale on resolution, replacing the plain CSS translate
+- **Hand repositioning** (`layout` prop) — remaining hand cards slide smoothly into new positions after a card is played, during both bidding and playing phases
+- **Player join animation** (`AnimatePresence`) — player rows slide in on join and fade out on drop in the waiting room lobby
+- **Results page staggered reveal** — standings reveal one by one (150ms stagger, spring physics); first-place row gets a scale pulse and amber highlight; heading and back button animate in sequence
+
+---
+
 ## [Scoring Formula Update] — 2026-03-19
 
 ### Changed
