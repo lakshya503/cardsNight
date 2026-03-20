@@ -53,11 +53,11 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
   }
 
   return (
-    <div className="p-4 bg-slate-800 rounded-lg">
+    <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
       <h2 className="text-lg font-semibold mb-4">Place your bid</h2>
 
       {isLastBidder && forbiddenBid !== null && forbiddenBid >= 0 && forbiddenBid <= round.hand_size && (
-        <p className="text-amber-400 text-sm mb-3">
+        <p className="text-sm mb-3" style={{ color: 'var(--color-primary)' }}>
           You cannot bid {forbiddenBid} — bids must not sum to exactly {round.hand_size}.
         </p>
       )}
@@ -71,13 +71,12 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
               onClick={() => submitBid(n)}
               disabled={!isValid || submitting}
               aria-label={`Bid ${n}`}
-              className={[
-                'w-12 h-12 rounded-lg font-bold text-lg transition-colors',
+              className={['w-12 h-12 rounded-lg font-bold text-lg transition-colors', submitting ? 'opacity-50' : ''].join(' ')}
+              style={
                 isValid
-                  ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                  : 'bg-slate-700 text-slate-500 cursor-not-allowed',
-                submitting ? 'opacity-50' : '',
-              ].join(' ')}
+                  ? { backgroundColor: '#F5B800', color: '#13131F' }
+                  : { backgroundColor: 'var(--color-surface-raised)', color: 'var(--color-text-muted)', cursor: 'not-allowed' }
+              }
             >
               {n}
             </button>
@@ -85,7 +84,7 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
         })}
       </div>
 
-      {error && <p className="mt-3 text-red-400 text-sm">{error}</p>}
+      {error && <p className="mt-3 text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
     </div>
   )
 }

@@ -156,9 +156,11 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
         <Link
           href="/"
           className="text-2xl font-bold"
-          style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)' }}
+          style={{ fontFamily: 'var(--font-display)' }}
         >
-          🃏 cardsNight
+          🃏{' '}
+          <span style={{ color: 'var(--color-text)' }}>cards</span>
+          <span style={{ color: 'var(--color-primary)' }}>Night</span>
         </Link>
         <form action={signOut}>
           <button
@@ -292,8 +294,9 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
                       <span
                         className="text-xs px-2 py-0.5 font-semibold rounded-full"
                         style={{
-                          backgroundColor: 'var(--color-accent-light)',
-                          color: 'var(--color-accent-hover)',
+                          border: '1px solid var(--color-primary)',
+                          color: 'var(--color-primary)',
+                          backgroundColor: 'transparent',
                         }}
                       >
                         👑 {copy.waitingRoom.hostBadge}
@@ -303,8 +306,8 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
                       <span
                         className="text-xs px-2 py-0.5 font-semibold rounded-full"
                         style={{
-                          backgroundColor: 'var(--color-primary-light)',
-                          color: 'var(--color-primary)',
+                          backgroundColor: 'var(--color-accent)',
+                          color: 'var(--color-text-on-accent)',
                         }}
                       >
                         {copy.waitingRoom.youBadge}

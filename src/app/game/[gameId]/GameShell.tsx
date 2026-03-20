@@ -21,8 +21,8 @@ function TrickProgress({ won, bid }: { won: number; bid: number }) {
   const over = won > bid
   return (
     <div className="w-full flex flex-col items-center gap-0.5">
-      <span className="text-xs text-slate-400 tabular-nums">{won}/{bid}</span>
-      <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+      <span className="text-xs tabular-nums" style={{ color: 'var(--color-text-muted)' }}>{won}/{bid}</span>
+      <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-raised)' }}>
         <div
           className={`h-full rounded-full transition-all duration-500 ${over ? 'bg-amber-400' : 'bg-emerald-400'}`}
           style={{ width: `${pct}%` }}
@@ -426,12 +426,12 @@ export function GameShell({
   }
 
   return (
-    <main className="min-h-screen bg-slate-900 text-white flex flex-col">
+    <main className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text)' }}>
 
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+      <header className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
         <span className="font-semibold">Round {round?.round_number ?? '—'}</span>
-        <span className="text-sm text-slate-400">
+        <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
           {round ? `${round.hand_size} card${round.hand_size !== 1 ? 's' : ''} this round` : ''}
         </span>
       </header>
@@ -449,13 +449,14 @@ export function GameShell({
             return (
               <div
                 key={p.userId}
-                className="flex flex-col items-center gap-1 px-3 py-2 bg-slate-800 rounded-xl w-[88px]"
+                className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl w-[88px]"
+                style={{ backgroundColor: 'var(--color-surface)' }}
               >
-                <div className="w-9 h-9 rounded-full bg-slate-600 flex items-center justify-center text-sm font-bold">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: '#2A2A42' }}>
                   {p.displayName[0].toUpperCase()}
                 </div>
                 <span className="text-sm font-medium">{p.displayName}</span>
-                {label && <span className="text-xs text-slate-400">{label}</span>}
+                {label && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{label}</span>}
                 {isPlaying && bids.find((b) => b.player_id === p.userId) !== undefined && (
                   <TrickProgress
                     won={tricksWon[p.userId] ?? 0}
@@ -473,7 +474,7 @@ export function GameShell({
           {/* Trump card */}
           {round && (
             <div className="flex flex-col items-center gap-1">
-              <p className="text-xs text-slate-400 uppercase tracking-wide">Trump</p>
+              <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>Trump</p>
               <div
                 className={`w-20 h-28 rounded-xl bg-white shadow-lg flex flex-col items-center justify-center gap-1 select-none ${SUIT_COLOR[round.trump_suit]}`}
               >
@@ -485,7 +486,14 @@ export function GameShell({
 
           {/* Status message */}
           {statusMessage && (
-            <p className="text-amber-100 text-sm text-center px-4 py-2.5 bg-amber-900/50 border border-amber-700/40 rounded-lg font-medium">
+            <p
+              className="text-sm text-center px-4 py-2.5 font-medium rounded-lg"
+              style={{
+                color: 'var(--color-primary)',
+                border: '1px solid var(--color-primary)',
+                backgroundColor: 'rgba(245, 184, 0, 0.08)',
+              }}
+            >
               {statusMessage}
             </p>
           )}
@@ -519,7 +527,7 @@ export function GameShell({
                       {SUIT_SYMBOL[tc.suit]}
                     </div>
                   </motion.div>
-                  <span className="text-xs text-slate-400">{tc.displayName}</span>
+                  <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{tc.displayName}</span>
                 </div>
               ))}
             </motion.div>
@@ -534,7 +542,7 @@ export function GameShell({
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">{me?.displayName ?? 'You'}</span>
               {myBid !== undefined && !isPlaying && (
-                <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-muted)' }}>
                   bid {myBid}
                 </span>
               )}
@@ -549,7 +557,7 @@ export function GameShell({
           {/* Your hand — visible during both bidding and playing */}
           {hand.length > 0 && (
             <div>
-              <p className="text-xs text-slate-400 mb-2 text-center">Your hand</p>
+              <p className="text-xs mb-2 text-center" style={{ color: 'var(--color-text-muted)' }}>Your hand</p>
               {isPlaying && currentTrick ? (
                 // Clickable hand inside TrickPanel during play phase
                 <TrickPanel
@@ -602,7 +610,7 @@ export function GameShell({
           {/* Playing action — handled inside TrickPanel above */}
           {isPlaying && !currentTrick && (
             <div data-testid="trick-panel">
-              <div className="p-4 bg-slate-800 rounded-lg text-slate-400 text-center text-sm">
+              <div className="p-4 rounded-lg text-center text-sm" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-muted)' }}>
                 Starting trick…
               </div>
             </div>
@@ -613,7 +621,7 @@ export function GameShell({
         </div>
 
         {round?.status === 'complete' && (
-          <div data-testid="round-complete" className="p-4 bg-slate-800 rounded-lg text-slate-300 text-center">
+          <div data-testid="round-complete" className="p-4 rounded-lg text-center" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}>
             Round complete — starting next round…
           </div>
         )}
@@ -627,11 +635,12 @@ export function GameShell({
           onClick={() => setShowRoundSummary(false)}
         >
           <div
-            className="bg-slate-800 rounded-2xl shadow-2xl p-6 mx-4 w-full max-w-sm max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-8 duration-300"
+            className="rounded-2xl shadow-2xl p-6 mx-4 w-full max-w-sm max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-8 duration-300"
+            style={{ backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-xl)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-lg font-bold text-center mb-1">Round {summaryRoundNumber} complete</h2>
-            <p className="text-xs text-slate-400 text-center mb-5">Tap anywhere to continue</p>
+            <p className="text-xs text-center mb-5" style={{ color: 'var(--color-text-muted)' }}>Tap anywhere to continue</p>
 
             <div className="space-y-3 overflow-y-auto flex-1">
               {players
@@ -647,13 +656,13 @@ export function GameShell({
                   return (
                     <div key={p.userId} className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold shrink-0">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ backgroundColor: '#2A2A42' }}>
                           {p.displayName[0].toUpperCase()}
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{p.displayName}</p>
                           {bid !== undefined && (
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                               {wonCount}/{bid} tricks
                               {exactBid && <span className="ml-1 text-emerald-400">✓ exact</span>}
                             </p>
@@ -661,20 +670,21 @@ export function GameShell({
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className={`text-base font-bold tabular-nums ${roundScore > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                        <p className={`text-base font-bold tabular-nums ${roundScore > 0 ? 'text-emerald-400' : ''}`} style={roundScore === 0 ? { color: 'var(--color-text-muted)' } : {}}>
                           {roundScore > 0 ? `+${roundScore}` : '+0'}
                         </p>
-                        <p className="text-xs text-slate-400 tabular-nums">{total} total</p>
+                        <p className="text-xs tabular-nums" style={{ color: 'var(--color-text-muted)' }}>{total} total</p>
                       </div>
                     </div>
                   )
                 })}
             </div>
 
-            <div className="mt-5 pt-4 border-t border-slate-700 text-center">
+            <div className="mt-5 pt-4 border-t text-center" style={{ borderColor: 'var(--color-border)' }}>
               <button
                 onClick={() => setShowRoundSummary(false)}
-                className="text-sm text-slate-300 hover:text-white transition-colors"
+                className="text-sm transition-colors"
+                style={{ color: 'var(--color-text-muted)' }}
               >
                 Continue to next round →
               </button>

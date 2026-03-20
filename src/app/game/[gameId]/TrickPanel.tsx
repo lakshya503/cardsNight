@@ -71,14 +71,14 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
     <div className="space-y-4">
       {/* Current trick — hidden in handOnly mode (rendered in GameShell center) */}
       {!handOnly && (
-        <div className="p-4 bg-slate-800 rounded-lg">
-          <p className="text-sm text-slate-400 mb-3">
+        <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>
             Current trick
             {ledSuit && <span className="ml-2 capitalize">· {ledSuit} led</span>}
           </p>
           <div className="flex flex-wrap gap-3 min-h-[64px]">
             {trickCards.length === 0 ? (
-              <p className="text-slate-500 text-sm self-center">No cards played yet</p>
+              <p className="text-sm self-center" style={{ color: 'var(--color-text-muted)' }}>No cards played yet</p>
             ) : (
               trickCards.map((tc) => (
                 <div key={tc.playerId} className="flex flex-col items-center gap-1">
@@ -88,7 +88,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
                       {SUIT_SYMBOL[tc.suit]}
                     </div>
                   </div>
-                  <span className="text-xs text-slate-400">{tc.displayName}</span>
+                  <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{tc.displayName}</span>
                 </div>
               ))
             )}
@@ -98,8 +98,8 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
 
       {/* Hand or waiting state */}
       {isMyTurn ? (
-        <div className="p-4 bg-slate-800 rounded-lg">
-          <p className="text-sm text-slate-400 mb-3">Your hand</p>
+        <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>Your hand</p>
           <div className="flex flex-wrap gap-2">
             {hand.map((card) => {
               const isValid = validatePlay(card, hand, ledSuit)
@@ -120,7 +120,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
                     'relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none transition-opacity',
                     isTrump ? 'ring-2 ring-amber-400 shadow-[0_0_20px_6px_rgba(251,191,36,0.75)]' : 'shadow-md',
                     isValid
-                      ? 'hover:ring-2 hover:ring-indigo-400'
+                      ? 'hover:ring-2 hover:ring-[#F5B800]'
                       : 'opacity-40 cursor-not-allowed',
                     submitting ? 'opacity-50' : '',
                   ].join(' ')}
@@ -133,11 +133,11 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
               )
             })}
           </div>
-          {error && <p className="mt-3 text-red-400 text-sm">{error}</p>}
+          {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
         </div>
       ) : (
-        <div className="p-4 bg-slate-800 rounded-lg">
-          <p className="text-sm text-slate-400 mb-3">Your hand</p>
+        <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>Your hand</p>
           <div className="flex flex-wrap gap-2 mb-4">
             {hand.map((card) => (
               // layout + layoutId so cards slide into place and match the clickable render
@@ -156,7 +156,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
               </motion.div>
             ))}
           </div>
-          <p className="text-slate-400 text-sm">
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
             Waiting for {currentPlayerName ?? 'other player'} to play…
           </p>
         </div>

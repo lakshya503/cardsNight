@@ -29,10 +29,10 @@ export function ResultsPanel({ results, currentUserId, isWinner }: Props) {
         <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'var(--font-display)' }}>
           {isWinner ? '🏆 You won!' : 'Game over'}
         </h1>
-        <p className="text-slate-400">Final standings</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>Final standings</p>
       </motion.div>
 
-      <div data-testid="results-panel" className="bg-slate-800 rounded-xl overflow-hidden">
+      <div data-testid="results-panel" className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--color-surface)' }}>
         {results.map((r, i) => {
           const isMe = r.player_id === currentUserId
           const isFirst = r.placement === 1
@@ -52,21 +52,24 @@ export function ResultsPanel({ results, currentUserId, isWinner }: Props) {
               }
               className={[
                 'flex items-center justify-between p-4',
-                i < results.length - 1 ? 'border-b border-slate-700' : '',
-                isMe ? 'bg-slate-700' : '',
+                i < results.length - 1 ? 'border-b' : '',
                 isFirst ? 'ring-1 ring-inset ring-amber-400/40' : '',
               ].join(' ')}
+              style={{
+                backgroundColor: isMe ? 'var(--color-surface-raised)' : undefined,
+                borderColor: 'var(--color-border)',
+              }}
             >
               <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold text-slate-500 w-8">
+                <span className="text-2xl font-bold w-8" style={{ color: 'var(--color-text-muted)' }}>
                   {r.placement}
                 </span>
                 <div>
                   <p className="font-semibold">
                     {r.display_name}{' '}
-                    {isMe && <span className="text-xs text-indigo-400">(you)</span>}
+                    {isMe && <span className="text-xs" style={{ color: 'var(--color-accent)' }}>(you)</span>}
                   </p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                     {r.result === 'win' ? '🏆 Winner' : 'Finished'}
                   </p>
                 </div>
@@ -85,7 +88,8 @@ export function ResultsPanel({ results, currentUserId, isWinner }: Props) {
       >
         <Link
           href="/"
-          className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-semibold transition-colors"
+          className="px-6 py-3 rounded-lg font-semibold transition-colors"
+          style={{ backgroundColor: '#F5B800', color: '#13131F' }}
         >
           Back to home
         </Link>

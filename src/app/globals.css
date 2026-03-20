@@ -6,43 +6,43 @@
   --font-sans:    var(--font-dm-sans);
 
   /* ── Brand colors ───────────────────────────────────── */
-  /* Primary: indigo */
-  --color-primary:          #6366F1;
-  --color-primary-hover:    #4F46E5;
-  --color-primary-light:    #EEF2FF;  /* indigo-50 — tinted panels */
+  /* Primary: yellow */
+  --color-primary:          #F5B800;
+  --color-primary-hover:    #E0A800;
+  --color-primary-light:    rgba(245, 184, 0, 0.12);
 
-  /* Accent: amber */
-  --color-accent:           #F59E0B;
-  --color-accent-hover:     #D97706;
-  --color-accent-light:     #FEF3C7;  /* amber-100 — warm highlighted panels */
+  /* Accent: purple (YOU badge) */
+  --color-accent:           #7C3AED;
+  --color-accent-hover:     #6D28D9;
+  --color-accent-light:     rgba(124, 58, 237, 0.15);
 
   /* ── Backgrounds ────────────────────────────────────── */
-  --color-background:       #FDF7EE;  /* warm parchment — the canvas */
-  --color-surface:          #FFFCF5;  /* warm white — cards, panels */
-  --color-surface-raised:   #FEF9F0;  /* slightly elevated surfaces */
+  --color-background:       #13131F;
+  --color-surface:          #1A1A2E;
+  --color-surface-raised:   #1F1F35;
 
   /* ── Text ───────────────────────────────────────────── */
-  --color-text:             #292524;  /* warm near-black */
-  --color-text-muted:       #6B5E45;  /* warm brown — no cool grays */
-  --color-text-on-primary:  #FFFFFF;
-  --color-text-on-accent:   #1C1917;
+  --color-text:             #FFFFFF;
+  --color-text-muted:       #9CA3AF;
+  --color-text-on-primary:  #13131F;  /* dark text on yellow buttons */
+  --color-text-on-accent:   #FFFFFF;
 
   /* ── Borders ────────────────────────────────────────── */
-  --color-border:           #F0E6D3;  /* warm sandy */
-  --color-border-strong:    #D9C9B0;  /* for focused/active inputs */
+  --color-border:           rgba(255, 255, 255, 0.08);
+  --color-border-strong:    rgba(255, 255, 255, 0.20);
 
   /* ── Feedback ───────────────────────────────────────── */
-  --color-success:          #059669;
-  --color-success-light:    #ECFDF5;
-  --color-error:            #DC2626;
-  --color-error-light:      #FEF2F2;
-  --color-warning:          #D97706;
-  --color-warning-light:    #FFFBEB;
+  --color-success:          #10B981;
+  --color-success-light:    rgba(16, 185, 129, 0.12);
+  --color-error:            #EF4444;
+  --color-error-light:      rgba(239, 68, 68, 0.12);
+  --color-warning:          #F59E0B;
+  --color-warning-light:    rgba(245, 158, 11, 0.12);
 
   /* ── Card suits ─────────────────────────────────────── */
-  /* Spades + Clubs: indigo  |  Hearts + Diamonds: amber  */
-  --color-suit-dark:        #6366F1;  /* spades, clubs */
-  --color-suit-warm:        #F59E0B;  /* hearts, diamonds */
+  /* Spades + Clubs: near-black on white cards  |  Hearts + Diamonds: red */
+  --color-suit-dark:        #1E293B;
+  --color-suit-warm:        #EF4444;
 
   /* ── Radius ─────────────────────────────────────────── */
   --radius-sm:   6px;
@@ -51,10 +51,10 @@
   --radius-xl:   20px;
   --radius-full: 9999px;
 
-  /* ── Shadows (warm-tinted) ──────────────────────────── */
-  --shadow-sm:  0 1px 3px rgba(28, 25, 23, 0.08);
-  --shadow-md:  0 4px 12px rgba(28, 25, 23, 0.10);
-  --shadow-lg:  0 8px 24px rgba(28, 25, 23, 0.12);
+  /* ── Shadows ────────────────────────────────────────── */
+  --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.30);
+  --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.40);
+  --shadow-lg:  0 8px 24px rgba(0, 0, 0, 0.50);
 }
 
 /* ── Reusable component styles ───────────────────────── */
