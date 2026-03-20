@@ -206,7 +206,7 @@ That's it for M1–M3.
 ### Admin client for all game API routes
 All API routes added in M2 (`bid`, `play`, `hand`, `start`) use `createAdminClient()` (service role key) for database queries after verifying auth via `supabase.auth.getUser()`. This bypasses RLS for game logic queries.
 
-**Why:** The `room_players` SELECT RLS policy is self-referential — it checks membership by querying `room_players` itself. A user who is not yet a member (e.g. joining a room) fails the policy evaluation, causing a Postgres error rather than returning zero rows. Using the admin client for game route DB queries avoids this class of issue entirely. Auth is still enforced at the application layer (check `user.id` against player lists explicitly).
+**Why:** Server-side game logic requires reading and writing multiple tables atomically. RLS adds per-query overhead and can fail in unexpected ways (see RLS recursion fix below). Auth is still enforced at the application layer by explicitly checking `user.id` against player lists loaded from the DB.
 
 **Rule:** Auth check = SSR client (`supabase.auth.getUser()`). All DB queries in API routes = admin client.
 
@@ -260,7 +260,7 @@ setTimeout(async () => {
 ### useState sync via useEffect keyed on round ID
 `router.refresh()` causes the Server Component to re-render and pass new props, but **`useState` initial values are only used on first mount** — they do not update when props change. Without explicit sync, `round`, `hand`, `bids`, etc. stay stale after a round transition.
 
-**Fix:** A dedicated `useEffect` keyed on `initialRound?.id` resets all per-round client state whenever the server provides a new round:
+**Fix:** A dedicated `useEffect` keyed on `initialRound?.id`, `initialRound?.current_player_id`, and `initialRound?.status` resets all per-round client state whenever the server provides updated round data. Keying on `current_player_id` and `status` (not just `id`) ensures polling-triggered refreshes propagate within a round (e.g. after a bid advances the turn):
 
 ```ts
 // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -269,7 +269,7 @@ useEffect(() => {
   setCurrentTrick(initialCurrentTrick); setTrickCards(initialTrickCards)
   setTricksWon(initialTricksWon); setTrickAnimation(null)
   roundRef.current = initialRound; currentTrickRef.current = initialCurrentTrick
-}, [initialRound?.id])
+}, [initialRound?.id, initialRound?.current_player_id, initialRound?.status])
 ```
 
 **Important:** `showRoundSummary` is intentionally excluded from this reset — see Snapshot state pattern below.
@@ -294,6 +294,43 @@ The overlay reads from `summaryTricksWon` / `summaryBids` / `summaryRoundScores`
 
 ---
 
+### RLS infinite recursion — SECURITY DEFINER helper
+The original `room_players: room members can read` RLS policy queried `room_players` inside its own `USING` clause, causing Postgres error `42P17` on every evaluation. Every other table's policy joins through `room_players` (`rounds → games → room_players`, `bids → rounds → games → room_players`, etc.), so this recursion silently made **all** SELECT queries and Supabase Realtime event delivery return 500 / drop events.
+
+**Fix (migration `20260319000001`):** A `SECURITY DEFINER` function `is_room_member(p_room_id)` reads `room_players` bypassing RLS. The policy calls this function instead:
+
+```sql
+create or replace function public.is_room_member(p_room_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from room_players where room_id = p_room_id and user_id = auth.uid());
+$$;
+
+create policy "room_players: room members can read" on public.room_players for select
+  to authenticated using (is_room_member(room_id));
+```
+
+**Rule:** Any RLS policy that needs to check membership in `room_players` must use `is_room_member()`, never a direct subquery on `room_players`.
+
+---
+
+### Realtime JWT injection — `getSession()` + `setAuth()`
+`createBrowserClient` from `@supabase/ssr` only calls `realtime.setAuth(token)` on auth state *transitions* (SIGNED_IN, TOKEN_REFRESHED). An existing cookie session on page load fires no state change event, so the Realtime WebSocket connects without a JWT. Supabase evaluates `auth.uid() = null` for every RLS policy check — the channel shows `SUBSCRIBED` but zero events are ever delivered.
+
+**Fix:** Before subscribing any Realtime channel, manually inject the token:
+
+```ts
+supabase.auth.getSession().then(({ data: { session } }) => {
+  if (session?.access_token) {
+    supabase.realtime.setAuth(session.access_token)
+  }
+  // now subscribe channels
+})
+```
+
+Applied in both `WaitingRoom.tsx` and `GameShell.tsx`. The `active` flag / channel ref pattern handles the async cleanup correctly.
+
+---
+
 ### Test-only auth endpoint (`/api/test/auth`)
 Playwright E2E tests need authenticated `page.request` contexts. The SSR client sets session cookies, making all subsequent API calls from that page context authenticated.
 
@@ -309,4 +346,4 @@ Playwright E2E tests need authenticated `page.request` contexts. The SSR client 
 - **CDN / asset caching** — Vercel handles this automatically for now
 - **Database connection pooling** — Supabase handles this; revisit if query latency becomes an issue
 - **Second game architecture** — M5 concern; document how game modules will be structured when we get there
-- **`MIN_PLAYERS` constant** — currently set to `2` for dev/test; revert to `4` before M3 launch
+- **`MIN_PLAYERS` constant** — reverted to `2` (supports 2–8 players; 4-player minimum removed as unnecessary)
