@@ -140,6 +140,8 @@ export function GameShell({
   // useState initial values don't update on prop changes, so we sync explicitly.
   // We intentionally do NOT reset showRoundSummary here — the overlay stays visible
   // until the user taps to dismiss, even after the new round's state has loaded.
+  // Also re-sync when current_player_id or status changes so that polling-triggered
+  // refreshes (which fire router.refresh() on drift) actually update the UI.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setRound(initialRound)
@@ -151,7 +153,7 @@ export function GameShell({
     setTrickAnimation(null)
     roundRef.current = initialRound
     currentTrickRef.current = initialCurrentTrick
-  }, [initialRound?.id])
+  }, [initialRound?.id, initialRound?.current_player_id, initialRound?.status])
 
   // useMemo is critical here: playerMap must be a stable reference so it doesn't
   // appear as changed on every render and tear down the Realtime channel.

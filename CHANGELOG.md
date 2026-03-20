@@ -8,11 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Realtime Fix] — 2026-03-19
 
 ### Fixed
-- **Root cause**: Supabase Realtime events silently blocked by RLS. `createBrowserClient` from `@supabase/ssr` only calls `realtime.setAuth()` on auth state transitions (SIGNED_IN / TOKEN_REFRESHED). Existing cookie sessions on page load fire no state change, so the WebSocket connected without a JWT — `auth.uid()` evaluated to null for all RLS policy checks and zero events were delivered even though channels showed SUBSCRIBED
-- Fixed by calling `supabase.auth.getSession()` + `supabase.realtime.setAuth(token)` before subscribing in both WaitingRoom and GameShell
-- GameShell Realtime channel retries on CHANNEL_ERROR/TIMED_OUT (2s delay)
-- GameShell polling fallback interval reduced from 8s to 3s
-- WaitingRoom subscribe callback logs channel errors (3s polling fallback already covers failures)
+- **Root cause (Realtime)**: Supabase Realtime events silently blocked by RLS. `createBrowserClient` from `@supabase/ssr` only calls `realtime.setAuth()` on auth state transitions (SIGNED_IN / TOKEN_REFRESHED). Existing cookie sessions on page load fire no state change, so the WebSocket connected without a JWT — `auth.uid()` evaluated to null for all RLS policy checks and zero events delivered even though channels showed SUBSCRIBED. Fixed by calling `supabase.auth.getSession()` + `supabase.realtime.setAuth(token)` before subscribing.
+- **Root cause (polling)**: `refreshPlayers()` browser-side Supabase query also silently failed because `createBrowserClient` did not correctly pick up the auth session cookie in production, returning null data and leaving player state stale. Fixed by switching WaitingRoom polling and Realtime room_players handler to `router.refresh()` — the server-side path always has correct auth via middleware cookies. Added sync `useEffect` (`playerKey` key) so refreshed `initialPlayers` prop flows into client `players` state.
+- GameShell sync effect now also triggers on `current_player_id` and `status` changes so polling-triggered `router.refresh()` calls actually update the UI (was only keyed on round `id`).
+- GameShell Realtime channel retries on CHANNEL_ERROR/TIMED_OUT (2s delay); polling fallback reduced from 8s to 3s
+- WaitingRoom subscribe callback logs channel errors (3s polling covers failures)
 
 ---
 

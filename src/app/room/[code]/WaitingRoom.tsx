@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -8,8 +8,6 @@ import { createClient } from '@/lib/supabase/client'
 import { copy } from '@/lib/ui/copy'
 import { signOut } from '@/app/auth/actions'
 import { MIN_PLAYERS } from '@/lib/game/validation'
-
-type ProfileJoin = { display_name: string; avatar_url: string | null } | null
 
 type Player = {
   userId: string
@@ -48,42 +46,27 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
       ? `${window.location.origin}/room/${room.code}`
       : `/room/${room.code}`
 
-  // Refetch player list — called on every Realtime event
-  const refreshPlayers = useCallback(async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('room_players')
-      .select(`
-        user_id,
-        status,
-        joined_at,
-        profiles (
-          display_name,
-          avatar_url
-        )
-      `)
-      .eq('room_id', room.id)
-      .neq('status', 'dropped')
-      .order('joined_at', { ascending: true })
+  // Sync server-provided player list into client state after every router.refresh().
+  // router.refresh() re-runs the Server Component which always has correct auth via
+  // middleware cookies, so initialPlayers is always authoritative. useState initial
+  // values don't update automatically on prop changes — this effect bridges the gap.
+  // We use a derived key so we only re-sync when the actual player list changes.
+  const playerKey = initialPlayers.map(p => `${p.userId}:${p.status}`).join(',')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setPlayers(initialPlayers) }, [playerKey])
 
-    if (data) {
-      setPlayers(
-        data.map((p) => ({
-          userId: p.user_id,
-          status: p.status,
-          joinedAt: p.joined_at,
-          displayName: (p.profiles as unknown as ProfileJoin)?.display_name ?? 'Player',
-          avatarUrl: (p.profiles as unknown as ProfileJoin)?.avatar_url ?? null,
-        }))
-      )
-    }
-  }, [room.id])
-
-  // Polling fallback — fires every 3 s if Realtime doesn't deliver
+  // Polling fallback: call router.refresh() every 3 s so the server re-fetches the
+  // player list and game-start state. Server-side auth (middleware cookies) is always
+  // reliable — browser-side Supabase queries can silently fail when auth cookies are
+  // not picked up correctly by createBrowserClient in production.
   useEffect(() => {
     const interval = setInterval(async () => {
-      refreshPlayers()
+      router.refresh()
 
+      // Also check rooms directly for game-start navigation. This is the only place
+      // we still use the browser Supabase client — it's a single lightweight query
+      // and the redirect is time-sensitive (can't wait for a full server re-render
+      // to propagate). Realtime covers the fast path; this is the backup.
       const supabase = createClient()
       const { data } = await supabase
         .from('rooms')
@@ -96,9 +79,9 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
       }
     }, 3000)
     return () => clearInterval(interval)
-  }, [room.id, refreshPlayers, router])
+  }, [room.id, router])
 
-  // Subscribe to room_players changes (player list) and rooms changes (game start)
+  // Subscribe to room_players changes (player list) and rooms changes (game start).
   useEffect(() => {
     const supabase = createClient()
     let channel: ReturnType<typeof supabase.channel> | null = null
@@ -118,7 +101,9 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'room_players', filter: `room_id=eq.${room.id}` },
-          () => refreshPlayers()
+          // router.refresh() re-runs the server component — more reliable than a
+          // browser-side Supabase query since server auth always works.
+          () => router.refresh()
         )
         .on(
           'postgres_changes',
@@ -140,7 +125,7 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
     return () => {
       if (channel) supabase.removeChannel(channel)
     }
-  }, [room.id, refreshPlayers, router])
+  }, [room.id, router])
 
   async function copyInviteLink() {
     await navigator.clipboard.writeText(inviteUrl)
