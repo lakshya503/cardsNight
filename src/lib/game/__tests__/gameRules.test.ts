@@ -30,8 +30,6 @@ describe('getStartingHandSize', () => {
     [6, 8],
     [7, 7],
     [8, 6],
-    [9, 5],
-    [10, 5],
   ])('%i players → %i cards', (players, expected) => {
     expect(getStartingHandSize(players)).toBe(expected)
   })

@@ -85,7 +85,6 @@ Trick-taking card game, 4–10 players, one standard 52-card deck.
   - 4–6 players → 8 cards
   - 7 players → 7 cards
   - 8 players → 6 cards
-  - 9–10 players → 5 cards
 
 ## Key UX Rules
 

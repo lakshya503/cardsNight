@@ -46,6 +46,11 @@ export default function JoinRoomPage() {
       const res = await fetch(`/api/rooms/${code}/join`, { method: 'POST' })
       const data = await res.json()
 
+      if (res.status === 401) {
+        router.push(`/sign-in?redirectTo=/rooms/join`)
+        return
+      }
+
       if (res.status === 409) {
         // Already in room — go straight there
         router.push(`/room/${code}`)

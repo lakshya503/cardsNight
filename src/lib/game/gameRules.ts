@@ -36,8 +36,7 @@ export function getStartingHandSize(playerCount: number): number {
   if (playerCount <= 3) return 10
   if (playerCount <= 6) return 8
   if (playerCount === 7) return 7
-  if (playerCount === 8) return 6
-  return 5 // 9–10 players
+  return 6 // 8 players
 }
 
 // Returns descending sequence [startingHandSize, ..., 1]

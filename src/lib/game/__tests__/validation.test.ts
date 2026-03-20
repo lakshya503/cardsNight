@@ -45,9 +45,9 @@ describe('validateCreateRoomInput', () => {
     expect(errors[0].field).toBe('max_players')
   })
 
-  it('accepts max_players at boundary values (4 and 10)', () => {
-    expect(validateCreateRoomInput({ ...validInput, max_players: 4 })).toEqual([])
-    expect(validateCreateRoomInput({ ...validInput, max_players: 10 })).toEqual([])
+  it('accepts max_players at boundary values (2 and 8)', () => {
+    expect(validateCreateRoomInput({ ...validInput, max_players: 2 })).toEqual([])
+    expect(validateCreateRoomInput({ ...validInput, max_players: 8 })).toEqual([])
   })
 
   it('rejects non-integer max_players', () => {

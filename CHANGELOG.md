@@ -79,6 +79,14 @@ M2 goal: 4+ friends play a complete game of Judgement with correct rules, scorin
 
 ---
 
+## [Player Count Range 2–8] — 2026-03-19
+
+### Changed
+- Player range narrowed to 2–8 (was 4–10). Allows 2-player testing and removes
+  unrealistic 9–10 player complexity. Hand size logic for 9–10 players removed as dead code.
+
+---
+
 ## [M2 Gameplay Polish] — 2026-03-19 (ongoing)
 
 ### Fixed

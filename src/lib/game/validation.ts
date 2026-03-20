@@ -1,8 +1,8 @@
 import type { GameType } from './types'
 
 export const VALID_GAME_TYPES: GameType[] = ['judgement']
-export const MIN_PLAYERS = 4
-export const MAX_PLAYERS = 10
+export const MIN_PLAYERS = 2
+export const MAX_PLAYERS = 8
 export const MIN_TIMER_SECONDS = 15
 export const MAX_TIMER_SECONDS = 120
 
