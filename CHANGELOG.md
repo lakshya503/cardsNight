@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [RLS Recursion Fix] — 2026-03-19
+
+### Fixed
+- **Root cause (all Realtime + REST failures)**: `room_players: room members can read` RLS policy
+  queried `room_players` inside its own `USING` clause → Postgres error 42P17 (infinite recursion)
+  on every evaluation. Every other table's policy joins through `room_players` (`rounds → games →
+  room_players`, `bids → rounds → games → room_players`, etc.), so the recursion made ALL SELECT
+  queries return 500 and Supabase Realtime event delivery fail silently. Fixed by introducing a
+  `SECURITY DEFINER` function `is_room_member()` that reads `room_players` bypassing RLS; the
+  policy now calls this function instead of querying the table directly.
+
+---
+
 ## [Realtime Fix] — 2026-03-19
 
 ### Fixed
