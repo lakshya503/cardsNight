@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { BiddingPanel } from './BiddingPanel'
 import { TrickPanel } from './TrickPanel'
@@ -491,22 +492,37 @@ export function GameShell({
 
           {/* Current trick cards (during playing) */}
           {isPlaying && currentTrick && trickCards.length > 0 && (
-            <div className={`flex flex-wrap justify-center gap-2 transition-all duration-700 ${
-              trickAnimation === 'up' ? '-translate-y-24 opacity-0' :
-              trickAnimation === 'down' ? 'translate-y-24 opacity-0' : ''
-            }`}>
+            <motion.div
+              className="flex flex-wrap justify-center gap-2"
+              animate={
+                trickAnimation === 'up'
+                  ? { y: -96, opacity: 0, scale: 0.85, rotate: -3 }
+                  : trickAnimation === 'down'
+                  ? { y: 96, opacity: 0, scale: 0.85, rotate: 3 }
+                  : { y: 0, opacity: 1, scale: 1, rotate: 0 }
+              }
+              transition={{ duration: 0.65, ease: [0.4, 0, 0.2, 1] }}
+            >
               {trickCards.map((tc) => (
                 <div key={tc.playerId} className="flex flex-col items-center gap-1">
-                  <div className="relative w-20 h-28 rounded-xl bg-white shadow-md flex flex-col p-1.5 select-none">
+                  {/* layoutId matches the card in TrickPanel hand — creates the fly animation
+                      for the card owner. For other players, it's a simple entrance. */}
+                  <motion.div
+                    layoutId={`card-${tc.suit}-${tc.value}`}
+                    initial={{ scale: 0.85, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+                    className="relative w-20 h-28 rounded-xl bg-white shadow-md flex flex-col p-1.5 select-none"
+                  >
                     <span className={`text-base font-bold leading-none ${SUIT_COLOR[tc.suit]}`}>{tc.value}</span>
                     <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[tc.suit]}`}>
                       {SUIT_SYMBOL[tc.suit]}
                     </div>
-                  </div>
+                  </motion.div>
                   <span className="text-xs text-slate-400">{tc.displayName}</span>
                 </div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
 
@@ -548,18 +564,21 @@ export function GameShell({
                   handOnly
                 />
               ) : (
-                // Read-only hand during bidding
+                // Read-only hand during bidding — layout animates reposition, no layoutId
+                // (layoutId is only used during the playing phase in TrickPanel to fly cards to center)
                 <div className="flex flex-wrap justify-center gap-2">
                   {hand.map((card) => (
-                    <div
+                    <motion.div
                       key={`${card.suit}:${card.value}`}
+                      layout
+                      transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
                       className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-2 ring-amber-400 shadow-[0_0_20px_6px_rgba(251,191,36,0.75)]' : ' shadow-md'}`}
                     >
                       <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
                       <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
                         {SUIT_SYMBOL[card.suit]}
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
