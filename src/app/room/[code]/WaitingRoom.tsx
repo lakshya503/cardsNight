@@ -129,7 +129,11 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
           }
         }
       )
-      .subscribe()
+      .subscribe((status, err) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('[RT] WaitingRoom channel error (polling will cover):', err)
+        }
+      })
 
     return () => {
       supabase.removeChannel(channel)

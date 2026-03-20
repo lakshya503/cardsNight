@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Realtime Fix] — 2026-03-19
+
+### Fixed
+- GameShell Realtime channel now retries automatically on CHANNEL_ERROR/TIMED_OUT (2s delay) — was failing silently after client-side navigation from WaitingRoom closed the underlying WebSocket
+- Added 8s polling fallback in GameShell to detect and recover from any missed Realtime events
+- WaitingRoom subscribe callback now logs channel errors (existing polling fallback already covered this case)
+
+---
+
 ## [M2] — Judgement Fully Playable — 2026-03-18
 
 M2 goal: 4+ friends play a complete game of Judgement with correct rules, scoring, and history saved.

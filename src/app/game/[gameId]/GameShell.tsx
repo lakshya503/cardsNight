@@ -171,9 +171,13 @@ export function GameShell({
       ? (...args: unknown[]) => console.log('[RT]', ...args)
       : () => {}
 
-    const channel = supabase
-      .channel(`game:${gameId}`)
-      .on(
+    let active = true
+    let currentChannel: ReturnType<typeof supabase.channel> | null = null
+
+    function setup() {
+      const channel = supabase
+        .channel(`game:${gameId}`)
+        .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameId}` },
         (payload) => {
@@ -309,15 +313,52 @@ export function GameShell({
           setSummaryRoundScores((prev) => ({ ...prev, [rs.player_id]: rs.score }))
         }
       )
-      .subscribe((status, err) => {
-        rt('channel status:', status, err ?? '')
-      })
+        .subscribe((status, err) => {
+          rt('channel status:', status, err ?? '')
+          if (!active) return
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('[RT] Realtime channel error, retrying in 2s', err)
+            supabase.removeChannel(channel)
+            setTimeout(setup, 2000)
+          }
+        })
+      currentChannel = channel
+    }
 
-    return () => { supabase.removeChannel(channel) }
+    setup()
+
+    return () => {
+      active = false
+      if (currentChannel) supabase.removeChannel(currentChannel)
+    }
   // playerMap intentionally excluded: it's stable (players don't change mid-game)
   // and was causing the channel to tear down on every state update.
   // playerMapRef gives the handler access to the latest value without re-subscribing.
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId, router])
+
+  // Polling fallback: if Realtime missed an event, detect state drift and refresh.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('rounds')
+        .select('id, status, current_player_id, round_number, hand_size, trump_suit, trump_card_value')
+        .eq('game_id', gameId)
+        .neq('status', 'complete')
+        .maybeSingle()
+      if (!data) return
+      const cur = roundRef.current
+      if (
+        !cur ||
+        data.id !== cur.id ||
+        data.current_player_id !== cur.current_player_id ||
+        data.status !== cur.status
+      ) {
+        router.refresh()
+      }
+    }, 8000)
+    return () => clearInterval(interval)
   }, [gameId, router])
 
   function handleCardPlayed(card: Card) {
