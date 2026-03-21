@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { BiddingPanel } from './BiddingPanel'
 import { TrickPanel } from './TrickPanel'
 import { Scoreboard } from './Scoreboard'
+import { TurnTimer } from './TurnTimer'
 import type { Card, Suit, CardValue } from '@/lib/game/types'
 
 function TrickProgress({ won, bid }: { won: number; bid: number }) {
@@ -70,6 +71,7 @@ interface Round {
   trump_card_value: string
   status: string
   current_player_id: string | null
+  turn_started_at: string | null
 }
 
 interface Bid {
@@ -108,6 +110,7 @@ interface Props {
   initialCumulativeScores: Record<string, number>
   initialTricksWon: Record<string, number>
   players: Player[]
+  turnTimerSeconds: number | null
 }
 
 export function GameShell({
@@ -121,6 +124,7 @@ export function GameShell({
   initialCumulativeScores,
   initialTricksWon,
   players,
+  turnTimerSeconds,
 }: Props) {
   const router = useRouter()
 
@@ -512,6 +516,15 @@ export function GameShell({
             >
               {statusMessage}
             </p>
+          )}
+
+          {/* Turn timer — only when host configured a timer and a turn is active */}
+          {turnTimerSeconds !== null && round?.turn_started_at && (isBidding || isPlaying) && (
+            <TurnTimer
+              turnStartedAt={round.turn_started_at}
+              turnTimerSeconds={turnTimerSeconds}
+              gameId={gameId}
+            />
           )}
 
           {/* Current trick cards (during playing) */}

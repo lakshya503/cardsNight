@@ -36,10 +36,17 @@ export default async function GamePage({ params }: PageProps) {
 
   if (!roomPlayer) redirect('/')
 
+  // Fetch room settings (for turn timer)
+  const { data: room } = await admin
+    .from('rooms')
+    .select('turn_timer_seconds')
+    .eq('id', game.room_id)
+    .maybeSingle()
+
   // Fetch current round
   const { data: round } = await admin
     .from('rounds')
-    .select('id, round_number, hand_size, trump_suit, trump_card_value, status, current_player_id')
+    .select('id, round_number, hand_size, trump_suit, trump_card_value, status, current_player_id, turn_started_at')
     .eq('game_id', gameId)
     .order('round_number', { ascending: false })
     .limit(1)
@@ -145,6 +152,7 @@ export default async function GamePage({ params }: PageProps) {
       initialCumulativeScores={cumulativeScores}
       initialTricksWon={initialTricksWon}
       players={playerList}
+      turnTimerSeconds={room?.turn_timer_seconds ?? null}
     />
   )
 }
