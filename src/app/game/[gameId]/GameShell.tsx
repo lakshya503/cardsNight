@@ -394,52 +394,51 @@ export function GameShell({
           if (!active) return
           for (const presence of leftPresences) {
             const departed = (presence as { userId?: string }).userId
-            if (departed && departed !== userId) {
-              // Optimistic timestamp; overwritten with server value on success.
-              // Capture the token so the fetch callback can verify it hasn't been
-              // superseded by a subsequent leave event for the same player.
-              const optimisticTs = new Date().toISOString()
-              setDisconnectedPlayers((prev) => new Map(prev).set(departed, optimisticTs))
+            if (!departed || departed === userId) continue
+            // Optimistic timestamp; overwritten with server value on success.
+            // Capture the token so the fetch callback can verify it hasn't been
+            // superseded by a subsequent leave event for the same player.
+            const optimisticTs = new Date().toISOString()
+            setDisconnectedPlayers((prev) => new Map(prev).set(departed, optimisticTs))
 
-              const body = JSON.stringify({ disconnectedUserId: departed })
-              const doFetch = () => fetch(`/api/games/${gameId}/disconnect`, {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body,
+            const body = JSON.stringify({ disconnectedUserId: departed })
+            const doFetch = () => fetch(`/api/games/${gameId}/disconnect`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body,
+            })
+
+            const applyServerTs = (serverTs: string) => {
+              setDisconnectedPlayers((prev) => {
+                const next = new Map(prev)
+                // Only overwrite if the current value is still our optimistic timestamp.
+                // A subsequent leave event may have set a newer optimistic timestamp.
+                if (next.get(departed) === optimisticTs) next.set(departed, serverTs)
+                return next
               })
-
-              function applyServerTs(serverTs: string) {
-                setDisconnectedPlayers((prev) => {
-                  const next = new Map(prev)
-                  // Only overwrite if the current value is still our optimistic timestamp.
-                  // A subsequent leave event may have set a newer optimistic timestamp.
-                  if (next.get(departed) === optimisticTs) next.set(departed, serverTs)
-                  return next
-                })
-              }
-
-              doFetch()
-                .then(async (res) => {
-                  if (!active) return
-                  if (!res.ok) throw new Error(`disconnect ${res.status}`)
-                  const data = await res.json() as { disconnected_at?: string }
-                  if (data.disconnected_at) applyServerTs(data.disconnected_at)
-                })
-                .catch(() => {
-                  if (!active) return
-                  doFetch()
-                    .then(async (res) => {
-                      if (!active) return
-                      if (!res.ok) return
-                      const data = await res.json() as { disconnected_at?: string }
-                      if (data.disconnected_at) applyServerTs(data.disconnected_at)
-                    })
-                    .catch((err) => {
-                      if (!active) return
-                      console.error('[Presence] disconnect fetch failed after retry:', err)
-                    })
-                })
             }
+
+            doFetch()
+              .then(async (res) => {
+                if (!active) return
+                if (!res.ok) throw new Error(`disconnect ${res.status}`)
+                const data = await res.json() as { disconnected_at?: string }
+                if (data.disconnected_at) applyServerTs(data.disconnected_at)
+              })
+              .catch(() => {
+                if (!active) return
+                doFetch()
+                  .then(async (res) => {
+                    if (!active) return
+                    if (!res.ok) return
+                    const data = await res.json() as { disconnected_at?: string }
+                    if (data.disconnected_at) applyServerTs(data.disconnected_at)
+                  })
+                  .catch((err) => {
+                    if (!active) return
+                    console.error('[Presence] disconnect fetch failed after retry:', err)
+                  })
+              })
           }
         })
         .on('presence', { event: 'join' }, ({ newPresences }) => {
