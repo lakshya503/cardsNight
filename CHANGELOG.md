@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [M3 — Reconnection Banner] — 2026-03-21
+
+### Added
+- `ReconnectionBanner` component — 60s countdown from `disconnected_at`; urgent red styling when <10s remain; fires `onExpired` immediately at mount if window already elapsed; resets correctly when `disconnectedAt` prop changes (second disconnect); NaN guard for invalid date strings
+- `GameShell` renders `ReconnectionBanner` for each entry in `disconnectedPlayers`; server-stamped `disconnected_at` overwrites optimistic client timestamp after fetch resolves; per-leave `optimisticTs` token prevents leave→rejoin→leave race from writing stale timestamp
+- Presence channel retries on `CHANNEL_ERROR` / `TIMED_OUT` (mirrors Postgres channel pattern); `presenceChannel` assigned before `.subscribe()` to prevent stale reference on retry; `active` flag guards all async callbacks; retry attempt also applies server-confirmed timestamp on success
+
+---
+
 ## [M3 — Disconnect Detection] — 2026-03-21
 
 ### Added
