@@ -79,6 +79,8 @@ function makeAdminMock({
   roomPlayer = DEFAULT_ROOM_PLAYER as { id: string } | null,
   round = DEFAULT_BIDDING_ROUND as Record<string, unknown> | null,
   players = DEFAULT_PLAYERS,
+  // Claim guard (race-condition fix)
+  claimSucceeds = true,
   // Bidding phase
   existingBids = [] as Array<{ amount: number }>,
   bidsInsertError = null as unknown,
@@ -130,7 +132,13 @@ function makeAdminMock({
   const prevRoundEq1 = vi.fn().mockReturnValue({ eq: prevRoundEq2 })
   const prevRoundSelect = vi.fn().mockReturnValue({ eq: prevRoundEq1 })
 
-  // rounds UPDATE: .update().eq()
+  // rounds UPDATE claim (atomic lock): .update().eq('id').eq('turn_started_at').select('id')
+  const claimSelectId = vi.fn().mockResolvedValue({ data: claimSucceeds ? [{ id: 'round-id' }] : [] })
+  const claimUpdateEq2 = vi.fn().mockReturnValue({ select: claimSelectId })
+  const claimUpdateEq1 = vi.fn().mockReturnValue({ eq: claimUpdateEq2 })
+  const claimUpdate = vi.fn().mockReturnValue({ eq: claimUpdateEq1 })
+
+  // rounds UPDATE advance/transition: .update().eq()
   const roundUpdateEq = vi.fn().mockResolvedValue({ error: null })
   const roundUpdate = vi.fn().mockReturnValue({ eq: roundUpdateEq })
 
@@ -215,10 +223,12 @@ function makeAdminMock({
     }
     if (table === 'rounds') {
       const idx = roundsCallCount++
-      if (idx === 0) return { select: roundSelect, update: roundUpdate, insert: roundInsert }
-      // Call 1: prev round lookup (bid last-bidder path)
-      // Call 2+: all round IDs for scoring/game-completion
-      if (idx === 1) return { select: prevRoundSelect, update: roundUpdate, insert: roundInsert }
+      if (idx === 0) return { select: roundSelect }
+      // Call 1: atomic claim UPDATE (always after the initial SELECT)
+      if (idx === 1) return { update: claimUpdate }
+      // Call 2: prev round SELECT (bid last-bidder path) or advance UPDATE (other paths)
+      // Call 3+: all round IDs for scoring/game-completion
+      if (idx === 2) return { select: prevRoundSelect, update: roundUpdate, insert: roundInsert }
       return { select: allRoundsSelect, update: roundUpdate, insert: roundInsert }
     }
     if (table === 'bids') return { select: bidsSelect, insert: bidsInsert }
@@ -241,7 +251,7 @@ function makeAdminMock({
     throw new Error(`Unexpected table: ${table}`)
   })
 
-  return { from: fromMock, tricksUpdate, roundUpdate, bidsInsert, tcInsert }
+  return { from: fromMock, tricksUpdate, roundUpdate, claimUpdate, bidsInsert, tcInsert }
 }
 
 beforeEach(() => {
@@ -295,6 +305,18 @@ describe('POST /api/games/[gameId]/expire-turn', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.status).toBe('not_expired')
+  })
+
+  // ── Race condition guard ─────────────────────────────────────────────────────
+  it('returns { status: already_resolved } when a concurrent request already claimed the turn', async () => {
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(
+      makeAdminMock({ claimSucceeds: false })
+    )
+    const res = await POST(makeRequest(), makeParams())
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).toBe('already_resolved')
   })
 
   // ── Bidding phase auto-resolution ───────────────────────────────────────────

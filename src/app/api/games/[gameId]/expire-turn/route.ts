@@ -83,6 +83,19 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ status: 'not_expired' }, { status: 200 })
   }
 
+  // Atomically claim this turn resolution to prevent double-resolution under concurrent requests.
+  // Only the first caller whose WHERE matches will proceed; concurrent callers return gracefully.
+  const { data: claimed } = await admin
+    .from('rounds')
+    .update({ turn_started_at: new Date().toISOString() })
+    .eq('id', round.id)
+    .eq('turn_started_at', round.turn_started_at)
+    .select('id')
+
+  if (!claimed || claimed.length === 0) {
+    return NextResponse.json({ status: 'already_resolved' }, { status: 200 })
+  }
+
   // Safe: current_player_id and turn_started_at are guaranteed non-null by the guard above
   const activeRound = round as typeof round & { current_player_id: string; turn_started_at: string }
 
