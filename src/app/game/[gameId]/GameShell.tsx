@@ -17,17 +17,31 @@ function TrickProgress({ won, bid }: { won: number; bid: number }) {
       </span>
     )
   }
-  const pct = Math.min((won / bid) * 100, 100)
   const over = won > bid
+  const dotColor = over ? '#EF4444' : '#10B981'
   return (
-    <div className="w-full flex flex-col items-center gap-0.5">
-      <span className="text-xs tabular-nums" style={{ color: 'var(--color-text-muted)' }}>{won}/{bid}</span>
-      <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-raised)' }}>
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${over ? 'bg-amber-400' : 'bg-emerald-400'}`}
-          style={{ width: `${pct}%` }}
-        />
+    <div className="flex items-center gap-1.5">
+      <div className="flex gap-0.5">
+        {Array.from({ length: bid }, (_, i) => (
+          <div
+            key={i}
+            style={{
+              width: '10px', height: '5px', borderRadius: '2px',
+              backgroundColor: i < won ? dotColor : 'rgba(255,255,255,0.12)',
+              transition: 'background-color 0.3s',
+            }}
+          />
+        ))}
+        {over && Array.from({ length: won - bid }, (_, i) => (
+          <div
+            key={`x-${i}`}
+            style={{ width: '10px', height: '5px', borderRadius: '2px', backgroundColor: '#EF4444' }}
+          />
+        ))}
       </div>
+      <span className="text-xs tabular-nums" style={{ color: over ? '#EF4444' : 'var(--color-text-muted)' }}>
+        {won}/{bid}
+      </span>
     </div>
   )
 }
@@ -44,6 +58,7 @@ interface Player {
   userId: string
   seatOrder: number
   displayName: string
+  avatarUrl?: string
 }
 
 interface Round {
@@ -443,19 +458,19 @@ export function GameShell({
         <Scoreboard scores={scoreboardData} currentRoundNumber={round?.round_number ?? 1} />
 
         {/* ── Opponent row (top) ─────────────────────────── */}
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap justify-center gap-4">
           {opponents.map((p) => {
             const label = getBidLabel(p.userId)
             return (
-              <div
-                key={p.userId}
-                className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl w-[88px]"
-                style={{ backgroundColor: 'var(--color-surface)' }}
-              >
-                <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: '#2A2A42' }}>
-                  {p.displayName[0].toUpperCase()}
-                </div>
-                <span className="text-sm font-medium">{p.displayName}</span>
+              <div key={p.userId} className="flex flex-col items-center gap-1" style={{ minWidth: '64px' }}>
+                {p.avatarUrl ? (
+                  <img src={p.avatarUrl} alt={p.displayName} className="w-12 h-12 rounded-full object-cover" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold" style={{ backgroundColor: '#2A2A42' }}>
+                    {p.displayName[0].toUpperCase()}
+                  </div>
+                )}
+                <span className="text-sm font-medium text-center leading-tight">{p.displayName}</span>
                 {label && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{label}</span>}
                 {isPlaying && bids.find((b) => b.player_id === p.userId) !== undefined && (
                   <TrickProgress
@@ -565,7 +580,6 @@ export function GameShell({
                   hand={hand}
                   trickCards={trickCards}
                   isMyTurn={isMyTurn}
-                  currentPlayerName={currentPlayerName}
                   onCardPlayed={handleCardPlayed}
                   ledSuit={(currentTrick?.led_suit ?? null) as Suit | null}
                   trumpSuit={round!.trump_suit}
@@ -580,7 +594,7 @@ export function GameShell({
                       key={`${card.suit}:${card.value}`}
                       layout
                       transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
-                      className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-2 ring-amber-400 shadow-[0_0_20px_6px_rgba(251,191,36,0.75)]' : ' shadow-md'}`}
+                      className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-2 ring-amber-400 shadow-[0_0_8px_2px_rgba(251,191,36,0.20)]' : ' shadow-md'}`}
                     >
                       <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
                       <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
@@ -656,9 +670,13 @@ export function GameShell({
                   return (
                     <div key={p.userId} className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ backgroundColor: '#2A2A42' }}>
-                          {p.displayName[0].toUpperCase()}
-                        </div>
+                        {p.avatarUrl ? (
+                          <img src={p.avatarUrl} alt={p.displayName} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ backgroundColor: '#2A2A42' }}>
+                            {p.displayName[0].toUpperCase()}
+                          </div>
+                        )}
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{p.displayName}</p>
                           {bid !== undefined && (

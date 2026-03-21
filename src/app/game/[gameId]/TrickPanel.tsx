@@ -17,7 +17,6 @@ interface Props {
   hand: Card[]
   trickCards: TrickCardDisplay[]
   isMyTurn: boolean
-  currentPlayerName: string | null
   onCardPlayed: (card: Card) => void
   /** Server-authoritative led suit; null until the first card of the trick is played */
   ledSuit: Suit | null
@@ -41,7 +40,7 @@ const SUIT_COLOR: Record<string, string> = {
   spades: 'text-slate-900',
 }
 
-export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerName, onCardPlayed, ledSuit, trumpSuit, handOnly = false }: Props) {
+export function TrickPanel({ gameId, hand, trickCards, isMyTurn, onCardPlayed, ledSuit, trumpSuit, handOnly = false }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -118,7 +117,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
                   transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
                   className={[
                     'relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none transition-opacity',
-                    isTrump ? 'ring-2 ring-amber-400 shadow-[0_0_20px_6px_rgba(251,191,36,0.75)]' : 'shadow-md',
+                    isTrump ? 'ring-2 ring-amber-400 shadow-[0_0_8px_2px_rgba(251,191,36,0.20)]' : 'shadow-md',
                     isValid
                       ? 'hover:ring-2 hover:ring-[#F5B800]'
                       : 'opacity-40 cursor-not-allowed',
@@ -138,7 +137,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
       ) : (
         <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
           <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>Your hand</p>
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-2">
             {hand.map((card) => (
               // layout + layoutId so cards slide into place and match the clickable render
               // when isMyTurn flips, preventing a flash
@@ -147,7 +146,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
                 layout
                 layoutId={`card-${card.suit}-${card.value}`}
                 transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
-                className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${card.suit === trumpSuit ? ' ring-2 ring-amber-400 shadow-[0_0_20px_6px_rgba(251,191,36,0.75)]' : ' shadow-md'}`}
+                className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${card.suit === trumpSuit ? ' ring-2 ring-amber-400 shadow-[0_0_8px_2px_rgba(251,191,36,0.20)]' : ' shadow-md'}`}
               >
                 <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
                 <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
@@ -156,9 +155,6 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
               </motion.div>
             ))}
           </div>
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-        Waiting for {currentPlayerName ?? 'other player'} to play…
-          </p>
         </div>
       )}
     </div>

@@ -62,7 +62,7 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-3 gap-2 place-items-center">
         {Array.from({ length: round.hand_size + 1 }, (_, i) => i).map((n) => {
           const isValid = validBids.includes(n)
           return (

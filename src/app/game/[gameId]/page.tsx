@@ -48,16 +48,20 @@ export default async function GamePage({ params }: PageProps) {
   // Fetch players in seat order with display names
   const { data: players } = await admin
     .from('room_players')
-    .select('user_id, seat_order, profiles(display_name)')
+    .select('user_id, seat_order, profiles(display_name, avatar_url)')
     .eq('room_id', game.room_id)
     .eq('status', 'active')
     .order('seat_order', { ascending: true })
 
-  const playerList = (players ?? []).map((p) => ({
-    userId: p.user_id,
-    seatOrder: p.seat_order ?? 0,
-    displayName: (p.profiles as { display_name: string } | null)?.display_name ?? 'Player',
-  }))
+  const playerList = (players ?? []).map((p) => {
+    const profile = p.profiles as { display_name: string; avatar_url: string | null } | null
+    return {
+      userId: p.user_id,
+      seatOrder: p.seat_order ?? 0,
+      displayName: profile?.display_name ?? 'Player',
+      avatarUrl: profile?.avatar_url ?? undefined,
+    }
+  })
 
   // Fetch existing bids for current round
   const { data: bids } = round
