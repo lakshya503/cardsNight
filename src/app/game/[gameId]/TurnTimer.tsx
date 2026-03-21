@@ -19,11 +19,12 @@ export function TurnTimer({ turnStartedAt, turnTimerSeconds, gameId }: Props) {
   const [remainingMs, setRemainingMs] = useState(computeRemaining)
   const firedRef = useRef(false)
 
-  // Reset state and fired guard whenever the turn changes
+  // Reset state and fired guard whenever the turn changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- computeRemaining is stable per-turn;
+  // this effect only needs to re-run when the turn identity (turnStartedAt) changes.
   useEffect(() => {
     firedRef.current = false
     setRemainingMs(computeRemaining())
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turnStartedAt])
 
   // Tick every second; fire expire endpoint once when time runs out.
