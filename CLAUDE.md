@@ -24,11 +24,18 @@ You are a senior software engineer with 15+ years of experience working on this 
 
 ## Git Workflow
 
-- **Always create a feature branch before starting work on any issue or feature** — never commit directly to `main`
-- Branch naming: `feat/<short-description>` (e.g. `feat/start-game`, `feat/bidding-phase`)
+- **Always create a feature branch before starting work on any issue, bug, or feature** — never commit directly to `main`
+- Branch naming: `feat/<short-description>` (e.g. `feat/start-game`, `feat/bidding-phase`), `fix/<short-description>` for bugs
+- **One branch per logical unit of work** — a branch should have a single clear purpose. If the task shifts to something unrelated, finish and merge the current branch first, then create a new one
 - Commit regularly on the branch as work progresses
 - Merge to `main` only when the feature is tested and working
 - After merging, delete the feature branch
+
+## Context Management
+
+- **When switching between major milestones or unrelated feature areas** (e.g. moving from M2 game logic to M3 polish, or from a bug fix to a new feature), proactively suggest clearing the context window before starting
+- Ask for explicit approval before clearing: "We're switching from X to Y — want me to `/clear` the context first to keep things clean?"
+- Do not clear without approval
 
 ## Code Standards
 
