@@ -99,6 +99,7 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
       trump_card_value: trumpCard.value,
       status: 'bidding',
       current_player_id: playerIds[getStartingBidderIndex(1, playerCount)],
+      turn_started_at: new Date().toISOString(),
     })
     .select('id')
     .single()

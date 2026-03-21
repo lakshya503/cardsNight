@@ -287,31 +287,63 @@ describe('POST /api/games/[gameId]/play', () => {
 
   it('returns 200 trick_in_progress when not the last card in the trick', async () => {
     ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
-    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(makeAdminMock())
+    const adminMock = makeAdminMock()
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(adminMock)
     // Only 1 of 2 players has played — existingTrickCards is empty, so player-1 leads
     const res = await POST(makeRequest(), makeParams())
     expect(res.status).toBe(200)
     expect((await res.json()).status).toBe('trick_in_progress')
+
+    // turn_started_at must be included in the rounds UPDATE (advance to next player in trick)
+    const fromCalls = (adminMock.from as ReturnType<typeof vi.fn>).mock.calls
+    const fromResults = (adminMock.from as ReturnType<typeof vi.fn>).mock.results
+    let updateArg: Record<string, unknown> | null = null
+    for (let i = 0; i < fromCalls.length; i++) {
+      if (fromCalls[i][0] === 'rounds') {
+        const result = fromResults[i].value as { update?: ReturnType<typeof vi.fn> }
+        if (result.update && (result.update as ReturnType<typeof vi.fn>).mock?.calls?.length > 0) {
+          updateArg = (result.update as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>
+          break
+        }
+      }
+    }
+    expect(updateArg).not.toBeNull()
+    expect(typeof updateArg!.turn_started_at).toBe('string')
   })
 
   it('returns 200 trick_complete with winnerId when last card in trick and more tricks remain', async () => {
     ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock({ id: 'player-2' }))
     // player-2 plays the last card; trick-1 is done, trick-2 is active; hand_size=2 so trick 2 is the last
     // but let's set hand_size=3 so more tricks remain after trick 2
-    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(
-      makeAdminMock({
-        round: { ...DEFAULT_ROUND, hand_size: 3, current_player_id: 'player-2' },
-        handRow: { cards: [{ suit: 'hearts', value: '3' }] },
-        playedByPlayer: [],
-        existingTrickCards: [{ player_id: 'player-1', suit: 'hearts', value: 'A' }],
-      })
-    )
+    const adminMock = makeAdminMock({
+      round: { ...DEFAULT_ROUND, hand_size: 3, current_player_id: 'player-2' },
+      handRow: { cards: [{ suit: 'hearts', value: '3' }] },
+      playedByPlayer: [],
+      existingTrickCards: [{ player_id: 'player-1', suit: 'hearts', value: 'A' }],
+    })
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(adminMock)
     // player-2 plays hearts:3; player-1 had hearts:A which beats it
     const res = await POST(makeRequest('game-id', { suit: 'hearts', value: '3' }), makeParams())
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.status).toBe('trick_complete')
     expect(body.winnerId).toBe('player-1') // A beats 3
+
+    // turn_started_at must be included in the rounds UPDATE (set trick winner as next leader)
+    const fromCalls = (adminMock.from as ReturnType<typeof vi.fn>).mock.calls
+    const fromResults = (adminMock.from as ReturnType<typeof vi.fn>).mock.results
+    let updateArg: Record<string, unknown> | null = null
+    for (let i = 0; i < fromCalls.length; i++) {
+      if (fromCalls[i][0] === 'rounds') {
+        const result = fromResults[i].value as { update?: ReturnType<typeof vi.fn> }
+        if (result.update && (result.update as ReturnType<typeof vi.fn>).mock?.calls?.length > 0) {
+          updateArg = (result.update as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>
+          break
+        }
+      }
+    }
+    expect(updateArg).not.toBeNull()
+    expect(typeof updateArg!.turn_started_at).toBe('string')
   })
 
   it('returns 200 round_complete when last trick of the round is completed', async () => {
@@ -425,5 +457,6 @@ describe('POST /api/games/[gameId]/play', () => {
 
     expect(insertArg).not.toBeNull()
     expect(insertArg!.current_player_id).toBe('player-1')
+    expect(typeof insertArg!.turn_started_at).toBe('string')
   })
 })
