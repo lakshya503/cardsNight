@@ -12,7 +12,9 @@ interface Props {
 
 export function ReconnectionBanner({ displayName, disconnectedAt, onExpired }: Props) {
   function computeRemaining() {
-    const expiredAt = new Date(disconnectedAt).getTime() + RECONNECT_WINDOW_MS
+    const parsed = new Date(disconnectedAt).getTime()
+    if (isNaN(parsed)) return 0  // Invalid date string — treat as expired
+    const expiredAt = parsed + RECONNECT_WINDOW_MS
     return Math.max(0, expiredAt - Date.now())
   }
 
@@ -22,11 +24,18 @@ export function ReconnectionBanner({ displayName, disconnectedAt, onExpired }: P
   const onExpiredRef = useRef(onExpired)
   useEffect(() => { onExpiredRef.current = onExpired }, [onExpired])
 
-  // Reset when the disconnectedAt changes (new disconnect event)
+  // Reset when disconnectedAt changes (new disconnect event); also fires at mount.
+  // If already expired (remaining === 0), call onExpired immediately rather than waiting
+  // up to one interval tick.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- computeRemaining is stable per disconnect; only resets on identity change
   useEffect(() => {
     firedRef.current = false
-    setRemainingMs(computeRemaining())
+    const remaining = computeRemaining()
+    setRemainingMs(remaining)
+    if (remaining === 0) {
+      firedRef.current = true
+      onExpiredRef.current()
+    }
   }, [disconnectedAt])
 
   // Tick every second; fire onExpired once when the window closes.

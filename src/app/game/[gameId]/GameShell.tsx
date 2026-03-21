@@ -397,8 +397,11 @@ export function GameShell({
           for (const presence of leftPresences) {
             const departed = (presence as { userId?: string }).userId
             if (departed && departed !== userId) {
-              // Optimistic timestamp; overwritten with server value on success
-              setDisconnectedPlayers((prev) => new Map(prev).set(departed, new Date().toISOString()))
+              // Optimistic timestamp; overwritten with server value on success.
+              // Capture the token so the fetch callback can verify it hasn't been
+              // superseded by a subsequent leave event for the same player.
+              const optimisticTs = new Date().toISOString()
+              setDisconnectedPlayers((prev) => new Map(prev).set(departed, optimisticTs))
 
               const body = JSON.stringify({ disconnectedUserId: departed })
               const doFetch = () => fetch(`/api/games/${gameId}/disconnect`, {
@@ -414,14 +417,19 @@ export function GameShell({
                   if (data.disconnected_at) {
                     setDisconnectedPlayers((prev) => {
                       const next = new Map(prev)
-                      if (next.has(departed)) next.set(departed, data.disconnected_at!)
+                      // Only overwrite if the current value is still our optimistic timestamp.
+                      // A subsequent leave event may have set a newer optimistic timestamp.
+                      if (next.get(departed) === optimisticTs) next.set(departed, data.disconnected_at!)
                       return next
                     })
                   }
                 })
-                .catch(() => doFetch().catch((err) =>
-                  console.error('[Presence] disconnect fetch failed after retry:', err)
-                ))
+                .catch(() => {
+                  if (!active) return
+                  doFetch().catch((err) =>
+                    console.error('[Presence] disconnect fetch failed after retry:', err)
+                  )
+                })
             }
           }
         })
@@ -443,6 +451,8 @@ export function GameShell({
           if (!active) return
           if (status === 'SUBSCRIBED') {
             await channel.track({ userId })
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('[Presence] channel error:', status)
           }
         })
 

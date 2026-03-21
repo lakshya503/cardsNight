@@ -74,7 +74,7 @@ describe('ReconnectionBanner', () => {
     expect(onExpired).toHaveBeenCalledOnce()
   })
 
-  it('calls onExpired when the component mounts with a timer already past expiry', async () => {
+  it('calls onExpired when the component mounts with a timer already past expiry', () => {
     const onExpired = vi.fn()
     render(
       <ReconnectionBanner
@@ -83,9 +83,43 @@ describe('ReconnectionBanner', () => {
         onExpired={onExpired}
       />
     )
-    // First interval tick should detect remaining === 0 and fire
-    await act(async () => { vi.advanceTimersByTime(1000) })
+    // onExpired fires in the reset effect at mount — no interval tick needed
     expect(onExpired).toHaveBeenCalledOnce()
+  })
+
+  it('resets and can fire again when disconnectedAt changes to a new disconnect', async () => {
+    const onExpired = vi.fn()
+    const { rerender } = render(
+      <ReconnectionBanner
+        displayName="Alice"
+        disconnectedAt={disconnectedSecondsAgo(58)} // 2s remaining
+        onExpired={onExpired}
+      />
+    )
+
+    // Let first disconnect expire
+    await act(async () => { vi.advanceTimersByTime(4000) })
+    expect(onExpired).toHaveBeenCalledTimes(1)
+
+    // New disconnect — reset with fresh timestamp, computed from current fake time
+    // (disconnectedSecondsAgo uses the original NOW constant, so we use Date.now() here)
+    const newDisconnectedAt = new Date(Date.now() - 10 * 1000).toISOString() // 50s remaining
+    await act(async () => {
+      rerender(
+        <ReconnectionBanner
+          displayName="Alice"
+          disconnectedAt={newDisconnectedAt}
+          onExpired={onExpired}
+        />
+      )
+    })
+
+    // Timer should be reset
+    expect(screen.getByTestId('reconnection-countdown')).toHaveTextContent('50s')
+
+    // And fire again at expiry
+    await act(async () => { vi.advanceTimersByTime(55_000) })
+    expect(onExpired).toHaveBeenCalledTimes(2)
   })
 
   it('does not call onExpired a second time after it already fired', async () => {
