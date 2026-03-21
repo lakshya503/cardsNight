@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [M3 — Disconnect Detection] — 2026-03-21
+
+### Added
+- `POST /api/games/[gameId]/disconnect` — marks a player as disconnected via conditional UPDATE `WHERE status = 'active'`; stamps `disconnected_at`; idempotent (0 rows updated → returns `already_disconnected`); self-disconnect guard returns 400
+- `GameShell` Presence channel — joins `presence:game:${gameId}` on mount, tracks own `userId` as heartbeat; on `LEAVE` event fires the disconnect endpoint for the departing player (first caller wins; concurrent calls are no-ops via the conditional UPDATE); channel stored in outer scope for proper cleanup on unmount
+
+---
+
+## [M3 — Turn Timer] — 2026-03-21
+
+### Added
+- `turn_started_at` column on `rounds` table (migration `20260321000000_add_turn_started_at.sql`); stamped on every turn advance in `bid`, `play`, and `expire-turn` routes
+- `TurnTimer` component — color-coded countdown (green >60%, amber 30–60%, red <30%), pulse animation <10s remaining; `useRef` guard fires `expire-turn` endpoint exactly once per turn; resets on `turn_started_at` change
+- `POST /api/games/[gameId]/expire-turn` — server-side timer validation with 1500ms clock-skew grace; atomic claim guard via conditional `UPDATE WHERE turn_started_at = $original` prevents concurrent double-resolution; auto-bid (lowest biddable per restriction rule via `getValidBids()`); auto-play (lowest legal card with suit-follow via `pickLowestLegalCard()`)
+- `GameShell` wired to `TurnTimer`; polling fallback now tracks `turn_started_at` drift so missed Realtime events don't leave the timer stale
+- `page.tsx` fetches `turn_timer_seconds` from `rooms` and passes it to `GameShell`
+
+---
+
 ## [Hand Size: 2–3 Players] — 2026-03-20
 
 ### Changed

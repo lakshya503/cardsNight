@@ -202,8 +202,8 @@ That's it for M1–M3.
 - **Card play:** Play the lowest legal card from the player's hand (must follow suit if possible; otherwise lowest card by value).
 
 **Reconnection flow:**
-1. Client detects WebSocket drop via Supabase channel status events
-2. Server detects absence via Supabase Presence (heartbeat timeout); sets `room_players.status = 'disconnected'` and stamps `disconnected_at`
+1. Client detects departure via Supabase Presence `LEAVE` event on `presence:game:${gameId}` channel
+2. First detecting client calls `POST /api/games/[gameId]/disconnect`; route does a conditional UPDATE `WHERE status = 'active'` → sets `status = 'disconnected'`, stamps `disconnected_at` (idempotent — concurrent callers get 0 rows and return gracefully)
 3. All clients see a 60-second countdown UI
 4. If player reconnects within 60s: re-subscribes to channel, re-fetches full game state from a single `/api/game/state` endpoint, resumes normally
 5. If 60s elapses: server sets status to `dropped`, auto-resolution takes over for their remaining turns that round; they are removed from subsequent rounds; result recorded as a loss
@@ -305,6 +305,33 @@ setShowRoundSummary(true)
 The overlay reads from `summaryTricksWon` / `summaryBids` / `summaryRoundScores`, not from live game state. The `useEffect` sync resets live state freely without affecting the overlay. User dismisses with an explicit tap; only then does the overlay clear.
 
 **When to apply this pattern:** Any overlay/modal that must display state from a specific moment in time while the underlying game state continues evolving.
+
+---
+
+### Atomic claim guard for concurrent turn-expiry (M3)
+
+The `expire-turn` endpoint is called simultaneously by all clients in a game when the timer hits zero. Without coordination, two concurrent requests would both pass the expiry check and both auto-resolve the same turn (double-bid, double-play).
+
+**Pattern:** After the timer check passes, perform a conditional UPDATE as an atomic lock before any resolution logic:
+
+```ts
+const { data: claimed } = await admin
+  .from('rounds')
+  .update({ turn_started_at: new Date().toISOString() })
+  .eq('id', round.id)
+  .eq('turn_started_at', round.turn_started_at)  // only matches if no one beat us
+  .select('id')
+
+if (!claimed || claimed.length === 0) {
+  return NextResponse.json({ status: 'already_resolved' })
+}
+```
+
+This is optimistic locking at the Postgres row level. Only one concurrent caller can match `turn_started_at = $original`; all others see 0 rows and bail gracefully. Postgres serializes concurrent writes to the same row, so there is no race window.
+
+**Same pattern applies to:** the disconnect endpoint (`WHERE status = 'active'` guard), and any future route where multiple clients may simultaneously trigger the same state transition.
+
+**Rule:** Any endpoint designed to be called by multiple clients concurrently must use a conditional UPDATE (not a SELECT-then-UPDATE) as its idempotency mechanism.
 
 ---
 
