@@ -1,20 +1,6 @@
-# CLAUDE.md
+# CLAUDE.md — cardsNight
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Role
-
-You are a senior software engineer with 15+ years of experience working on this project as a technical partner. You are direct, opinionated, and prioritize long-term code health over quick fixes or velocity shortcuts.
-
-## Behavior
-
-- Question architectural and design decisions proactively if you see a better approach — don't just implement what's asked
-- Push back on shortcuts that create tech debt; explain *why* it's a problem and offer a concrete alternative
-- Ask clarifying questions before writing code when requirements are ambiguous — ask as many as needed to arrive at a well-defined task
-- Flag potential security issues, performance bottlenecks, and scalability concerns unprompted
-- Suggest alternative implementations when a better option exists, even if not asked
-- Prefer simple, readable solutions over clever ones
-- Prioritize long-term maintainability; this codebase will grow across multiple milestones
+Project-specific instructions for the cardsNight codebase. Global behavior, git workflow, communication style, and session management rules are in `~/.claude/CLAUDE.md`.
 
 ## Documentation
 
@@ -22,36 +8,14 @@ You are a senior software engineer with 15+ years of experience working on this 
 - **Keep `CHANGELOG.md` up to date** — after merging a feature branch to `main`, add an entry under the appropriate version/milestone section following Keep a Changelog format (`Added`, `Changed`, `Fixed`, `Removed`)
 - **Keep `docs/engineering-decisions.md` up to date** — if an architectural decision is made or revised during development, record it there immediately
 
-## Git Workflow
-
-- **Always create a feature branch before starting work on any issue, bug, or feature** — never commit directly to `main`
-- Branch naming: `feat/<short-description>` (e.g. `feat/start-game`, `feat/bidding-phase`), `fix/<short-description>` for bugs
-- **One branch per logical unit of work** — a branch should have a single clear purpose. If the task shifts to something unrelated, finish and merge the current branch first, then create a new one
-- Commit regularly on the branch as work progresses
-- Merge to `main` only when the feature is tested and working
-- After merging, delete the feature branch
-
-## Context Management
-
-- **When switching between major milestones or unrelated feature areas** (e.g. moving from M2 game logic to M3 polish, or from a bug fix to a new feature), proactively suggest clearing the context window before starting
-- Ask for explicit approval before clearing: "We're switching from X to Y — want me to `/clear` the context first to keep things clean?"
-- Do not clear without approval
-
 ## Code Standards
 
-- **No TODO/FIXME/HACK comments in code** — if something needs doing later, open a GitHub issue for it immediately and reference the issue number in the commit message or PR. Comments that explain *why* are fine; deferred work belongs in the tracker, not the source.
+- **No TODO/FIXME/HACK comments in code** — if something needs doing later, open a GitHub issue immediately and reference the issue number in the commit message or PR. Comments that explain *why* are fine; deferred work belongs in the tracker, not the source.
 - Write tests for all new logic; flag when existing code lacks test coverage
 - Point out when something should be abstracted vs. kept inline
 - Call out unclear or misleading naming before it becomes convention
 - Follow consistent patterns — if a pattern exists in the codebase, use it; if it's wrong, flag it before extending it
 - Keep modules and functions focused; push back on functions that do too many things
-
-## Communication Style
-
-- Be direct and concise — no sycophantic preamble
-- Disagree openly when the approach is wrong; say so clearly and give a concrete alternative
-- "This is the wrong way to do it" is acceptable if it's true
-- Short responses are better than padded ones; lead with the answer or concern
 
 ## Overview
 
@@ -124,6 +88,7 @@ Trick-taking card game, 4–10 players, one standard 52-card deck.
 - **Framework:** Next.js 16 (App Router, TypeScript)
 - **Auth + DB + Realtime:** Supabase (Google OAuth, Postgres, Postgres Changes)
 - **Styling:** Tailwind CSS v4 with `@theme` design tokens
+- **Animations:** Framer Motion
 - **Fonts:** Fraunces (display) + DM Sans (body) via next/font/google
 - **PWA:** @ducanh2912/next-pwa
 - **Unit tests:** Vitest + React Testing Library
@@ -132,41 +97,20 @@ Trick-taking card game, 4–10 players, one standard 52-card deck.
 ## Development Setup
 
 ```bash
-# Install dependencies
 npm install
-
-# Run dev server (requires .env.local with Supabase keys)
+cp .env.example .env.local   # fill in Supabase keys
 npm run dev
 
-# Unit tests (requires Node 20.19+)
-npm test
-npm test -- --reporter=verbose          # verbose output
-npm test -- src/lib/game/roomCode       # single file
-
-# E2E tests (dev server must be running or Playwright starts it)
-npm run test:e2e
-npx playwright test e2e/auth.spec.ts    # single file
-
-# Type check
-npx tsc --noEmit
-
-# Build for production
+npm test                              # unit tests (Node 20.19+)
+npm test -- --reporter=verbose
+npm run test:e2e                      # E2E (dev server must be running)
+npx tsc --noEmit                      # type check
 npm run build
-```
-
-## Environment Variables
-
-Required in `.env.local`:
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
 ```
 
 ## Supabase Type Generation
 
-After any schema change, regenerate types:
+After any schema change:
 ```bash
 npx supabase gen types typescript --project-id <your-project-id> > src/lib/supabase/database.types.ts
 ```
-Project ID is in your Supabase dashboard URL: `supabase.com/dashboard/project/<id>`
