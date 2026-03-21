@@ -406,27 +406,36 @@ export function GameShell({
                 body,
               })
 
+              function applyServerTs(serverTs: string) {
+                setDisconnectedPlayers((prev) => {
+                  const next = new Map(prev)
+                  // Only overwrite if the current value is still our optimistic timestamp.
+                  // A subsequent leave event may have set a newer optimistic timestamp.
+                  if (next.get(departed) === optimisticTs) next.set(departed, serverTs)
+                  return next
+                })
+              }
+
               doFetch()
                 .then(async (res) => {
                   if (!active) return
                   if (!res.ok) throw new Error(`disconnect ${res.status}`)
                   const data = await res.json() as { disconnected_at?: string }
-                  if (data.disconnected_at) {
-                    setDisconnectedPlayers((prev) => {
-                      const next = new Map(prev)
-                      // Only overwrite if the current value is still our optimistic timestamp.
-                      // A subsequent leave event may have set a newer optimistic timestamp.
-                      if (next.get(departed) === optimisticTs) next.set(departed, data.disconnected_at!)
-                      return next
-                    })
-                  }
+                  if (data.disconnected_at) applyServerTs(data.disconnected_at)
                 })
                 .catch(() => {
                   if (!active) return
-                  doFetch().catch((err) => {
-                    if (!active) return
-                    console.error('[Presence] disconnect fetch failed after retry:', err)
-                  })
+                  doFetch()
+                    .then(async (res) => {
+                      if (!active) return
+                      if (!res.ok) return
+                      const data = await res.json() as { disconnected_at?: string }
+                      if (data.disconnected_at) applyServerTs(data.disconnected_at)
+                    })
+                    .catch((err) => {
+                      if (!active) return
+                      console.error('[Presence] disconnect fetch failed after retry:', err)
+                    })
                 })
             }
           }
@@ -445,18 +454,18 @@ export function GameShell({
             }
           }
         })
-        .subscribe(async (status) => {
-          if (!active) return
-          if (status === 'SUBSCRIBED') {
-            await channel.track({ userId })
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.error('[Presence] channel error, retrying in 2s:', status)
-            supabase.removeChannel(channel)
-            setTimeout(setup, 2000)
-          }
-        })
-
       presenceChannel = channel
+
+      channel.subscribe(async (status) => {
+        if (!active) return
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ userId })
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('[Presence] channel error, retrying in 2s:', status)
+          supabase.removeChannel(channel)
+          setTimeout(setup, 2000)
+        }
+      })
     }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
