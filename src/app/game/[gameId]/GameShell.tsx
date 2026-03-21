@@ -595,7 +595,7 @@ export function GameShell({
                       key={`${card.suit}:${card.value}`}
                       layout
                       transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
-                      className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-2 ring-amber-400 shadow-[0_0_8px_2px_rgba(251,191,36,0.20)]' : ' shadow-md'}`}
+                      className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-2 ring-amber-400 shadow-[0_0_16px_4px_rgba(251,191,36,0.55)]' : ' shadow-md'}`}
                     >
                       <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
                       <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
