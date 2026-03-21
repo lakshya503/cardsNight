@@ -181,7 +181,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const nextPlayerId = players[(currentIdx + 1) % players.length].user_id
     const { error: advanceError } = await admin
       .from('rounds')
-      .update({ current_player_id: nextPlayerId })
+      .update({ current_player_id: nextPlayerId, turn_started_at: new Date().toISOString() })
       .eq('id', round.id)
     if (advanceError) {
       console.error('[play] advance turn error:', advanceError)
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   const { error: trickLeaderError } = await admin
     .from('rounds')
-    .update({ current_player_id: winnerId })
+    .update({ current_player_id: winnerId, turn_started_at: new Date().toISOString() })
     .eq('id', round.id)
 
   if (trickLeaderError) {
@@ -316,6 +316,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         trump_card_value: trumpCard.value,
         status: 'bidding',
         current_player_id: nextBidderId,
+        turn_started_at: new Date().toISOString(),
       })
       .select('id')
       .single()

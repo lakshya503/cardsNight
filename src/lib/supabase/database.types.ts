@@ -342,6 +342,7 @@ export type Database = {
           status: string
           trump_card_value: string
           trump_suit: string
+          turn_started_at: string | null
         }
         Insert: {
           created_at?: string
@@ -353,6 +354,7 @@ export type Database = {
           status?: string
           trump_card_value: string
           trump_suit: string
+          turn_started_at?: string | null
         }
         Update: {
           created_at?: string
@@ -364,6 +366,7 @@ export type Database = {
           status?: string
           trump_card_value?: string
           trump_suit?: string
+          turn_started_at?: string | null
         }
         Relationships: [
           {

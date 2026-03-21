@@ -221,27 +221,59 @@ describe('POST /api/games/[gameId]/bid', () => {
 
   it('returns 200 and advances current_player_id when not the last bidder', async () => {
     ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock({ id: 'player-1' }))
-    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(makeAdminMock())
+    const adminMock = makeAdminMock()
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(adminMock)
     const res = await POST(makeRequest('game-id', { amount: 2 }), makeParams())
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.status).toBe('bidding')
+
+    // turn_started_at must be included in the rounds UPDATE (advance to next bidder)
+    const fromCalls = (adminMock.from as ReturnType<typeof vi.fn>).mock.calls
+    const fromResults = (adminMock.from as ReturnType<typeof vi.fn>).mock.results
+    let updateArg: Record<string, unknown> | null = null
+    for (let i = 0; i < fromCalls.length; i++) {
+      if (fromCalls[i][0] === 'rounds') {
+        const result = fromResults[i].value as { update?: ReturnType<typeof vi.fn> }
+        if (result.update && (result.update as ReturnType<typeof vi.fn>).mock?.calls?.length > 0) {
+          updateArg = (result.update as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>
+          break
+        }
+      }
+    }
+    expect(updateArg).not.toBeNull()
+    expect(updateArg!.turn_started_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
   })
 
   it('returns 200 with status playing and inserts trick when last bidder bids', async () => {
     // player-2 is last bidder (existingBids has player-1's bid already)
     ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock({ id: 'player-2' }))
-    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(
-      makeAdminMock({
-        round: { id: 'r', round_number: 1, hand_size: 10, status: 'bidding', current_player_id: 'player-2' },
-        existingBids: [{ amount: 3 }],
-      })
-    )
+    const adminMock = makeAdminMock({
+      round: { id: 'r', round_number: 1, hand_size: 10, status: 'bidding', current_player_id: 'player-2' },
+      existingBids: [{ amount: 3 }],
+    })
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(adminMock)
     // amount=2: forbidden=10-3=7, 2 is valid
     const res = await POST(makeRequest('game-id', { amount: 2 }), makeParams())
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.status).toBe('playing')
+
+    // turn_started_at must be included in the rounds UPDATE (transition to playing)
+    const fromCalls = (adminMock.from as ReturnType<typeof vi.fn>).mock.calls
+    const fromResults = (adminMock.from as ReturnType<typeof vi.fn>).mock.results
+    let updateArg: Record<string, unknown> | null = null
+    for (let i = 0; i < fromCalls.length; i++) {
+      if (fromCalls[i][0] === 'rounds') {
+        const result = fromResults[i].value as { update?: ReturnType<typeof vi.fn> }
+        if (result.update && (result.update as ReturnType<typeof vi.fn>).mock?.calls?.length > 0) {
+          updateArg = (result.update as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>
+          break
+        }
+      }
+    }
+    expect(updateArg).not.toBeNull()
+    expect(updateArg!.turn_started_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
   })
 
   it('sets first trick leader to previous round last trick winner when last bidder bids in round 2', async () => {

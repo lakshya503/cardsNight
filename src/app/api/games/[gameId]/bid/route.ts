@@ -141,7 +141,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
     const { error: roundError } = await admin
       .from('rounds')
-      .update({ status: 'playing', current_player_id: leadingPlayerId })
+      .update({ status: 'playing', current_player_id: leadingPlayerId, turn_started_at: new Date().toISOString() })
       .eq('id', round.id)
 
     if (roundError) {
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   const { error: advanceError } = await admin
     .from('rounds')
-    .update({ current_player_id: nextPlayerId })
+    .update({ current_player_id: nextPlayerId, turn_started_at: new Date().toISOString() })
     .eq('id', round.id)
 
   if (advanceError) {

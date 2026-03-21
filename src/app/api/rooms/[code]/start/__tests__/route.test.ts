@@ -127,11 +127,18 @@ describe('POST /api/rooms/[code]/start', () => {
 
   it('returns 200 with gameId on success', async () => {
     vi.mocked(createClient).mockResolvedValue(makeServerMock() as never)
-    vi.mocked(createAdminClient).mockReturnValue(makeAdminMock() as never)
+    const adminMock = makeAdminMock()
+    vi.mocked(createAdminClient).mockReturnValue(adminMock as never)
     const res = await POST(makeRequest(), { params: Promise.resolve({ code: 'ABC1234' }) })
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json).toEqual({ gameId: 'game-id' })
+
+    // Verify rounds insert includes turn_started_at as ISO 8601 string
+    const roundsTable = adminMock.from('rounds')
+    const roundsInsertMock = roundsTable.insert as ReturnType<typeof vi.fn>
+    const roundsInsertArg = roundsInsertMock.mock.calls[0]?.[0]
+    expect(roundsInsertArg.turn_started_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
   })
 
   it('returns 500 if game insert fails', async () => {
