@@ -145,6 +145,8 @@ export function GameShell({
   const [showRoundSummary, setShowRoundSummary] = useState(false)
   // disconnectedPlayers: userId → disconnectedAt ISO string
   const [disconnectedPlayers, setDisconnectedPlayers] = useState<Map<string, string>>(new Map())
+  // droppedPlayers: userId set — players who failed to reconnect and were dropped
+  const [droppedPlayers, setDroppedPlayers] = useState<Set<string>>(new Set())
 
   const roundRef = useRef<Round | null>(initialRound)
   const currentTrickRef = useRef<Trick | null>(initialCurrentTrick)
@@ -508,6 +510,22 @@ export function GameShell({
     return () => clearInterval(interval)
   }, [gameId, router])
 
+  // When a dropped player holds the current turn, auto-resolve it via expire-turn.
+  // Fires 1s after detection so the drop-player request has time to complete.
+  // expire-turn bypasses the timer check for dropped players (idempotent — safe for
+  // multiple clients to call concurrently).
+  useEffect(() => {
+    const currentPlayerId = round?.current_player_id
+    if (!currentPlayerId || !droppedPlayers.has(currentPlayerId)) return
+    const timer = setTimeout(() => {
+      fetch(`/api/games/${gameId}/expire-turn`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+      }).catch((err) => console.error('[expire-turn/dropped] fetch failed:', err))
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [round?.current_player_id, droppedPlayers, gameId])
+
   function handleCardPlayed(card: Card) {
     setHand((prev) => prev.filter((c) => !(c.suit === card.suit && c.value === card.value)))
     setTrickCards((prev) =>
@@ -641,13 +659,26 @@ export function GameShell({
                     key={playerId}
                     displayName={displayName}
                     disconnectedAt={disconnectedAt}
-                    onExpired={() =>
-                      setDisconnectedPlayers((prev) => {
-                        const next = new Map(prev)
-                        next.delete(playerId)
-                        return next
-                      })
-                    }
+                    onExpired={async () => {
+                      try {
+                        const res = await fetch(`/api/games/${gameId}/drop-player`, {
+                          method: 'POST',
+                          headers: { 'content-type': 'application/json' },
+                          body: JSON.stringify({ disconnectedUserId: playerId }),
+                        })
+                        const data = await res.json() as { status: string }
+                        if (res.ok && (data.status === 'dropped' || data.status === 'already_dropped')) {
+                          setDisconnectedPlayers((prev) => {
+                            const next = new Map(prev)
+                            next.delete(playerId)
+                            return next
+                          })
+                          setDroppedPlayers((prev) => new Set(prev).add(playerId))
+                        }
+                      } catch (err) {
+                        console.error('[drop-player] fetch failed:', err)
+                      }
+                    }}
                   />
                 )
               })}

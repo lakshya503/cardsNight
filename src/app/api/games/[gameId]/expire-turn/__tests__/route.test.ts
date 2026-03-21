@@ -79,6 +79,8 @@ function makeAdminMock({
   roomPlayer = DEFAULT_ROOM_PLAYER as { id: string } | null,
   round = DEFAULT_BIDDING_ROUND as Record<string, unknown> | null,
   players = DEFAULT_PLAYERS,
+  // Status of the round's current_player_id (active = normal timer path, dropped = bypass)
+  currentPlayerStatus = 'active' as string,
   // Claim guard (race-condition fix)
   claimSucceeds = true,
   // Bidding phase
@@ -111,6 +113,12 @@ function makeAdminMock({
   const rpMemberEq2 = vi.fn().mockReturnValue({ eq: rpMemberEq3 })
   const rpMemberEq1 = vi.fn().mockReturnValue({ eq: rpMemberEq2 })
   const rpMemberSelect = vi.fn().mockReturnValue({ eq: rpMemberEq1 })
+
+  // room_players current-player status check: .select().eq().eq().maybeSingle()
+  const cpMaybeSingle = vi.fn().mockResolvedValue({ data: { status: currentPlayerStatus } })
+  const cpEq2 = vi.fn().mockReturnValue({ maybeSingle: cpMaybeSingle })
+  const cpEq1 = vi.fn().mockReturnValue({ eq: cpEq2 })
+  const cpSelect = vi.fn().mockReturnValue({ eq: cpEq1 })
 
   // room_players seat list: .select().eq().eq().order()
   const rpListOrder = vi.fn().mockResolvedValue({ data: players })
@@ -219,6 +227,7 @@ function makeAdminMock({
     if (table === 'room_players') {
       const idx = rpCallCount++
       if (idx === 0) return { select: rpMemberSelect }
+      if (idx === 1) return { select: cpSelect }   // current player status check
       return { select: rpListSelect }
     }
     if (table === 'rounds') {
@@ -416,6 +425,49 @@ describe('POST /api/games/[gameId]/expire-turn', () => {
         suit: 'spades',
         value: '3',
       })
+    )
+  })
+
+  // ── Dropped-player bypass ────────────────────────────────────────────────────
+  it('auto-resolves a dropped player turn even when no turn timer is configured', async () => {
+    // Room has no timer, but current_player_id is dropped → should still auto-resolve
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
+    const admin = makeAdminMock({
+      room: { turn_timer_seconds: null },  // no timer
+      round: { ...DEFAULT_BIDDING_ROUND, current_player_id: 'player-2' },
+      currentPlayerStatus: 'dropped',
+      existingBids: [],
+    })
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(admin)
+
+    const res = await POST(makeRequest(), makeParams())
+    // Should auto-bid, not return 422 (timer not configured)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).not.toBe('not_expired')
+    expect(body.status).not.toBe('no_timer')
+    expect(admin.bidsInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ player_id: 'player-2' })
+    )
+  })
+
+  it('auto-resolves a dropped player turn immediately without checking timer expiry', async () => {
+    // Timer configured but not yet expired — dropped player should still be auto-resolved
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
+    const admin = makeAdminMock({
+      round: { ...DEFAULT_BIDDING_ROUND, current_player_id: 'player-2', turn_started_at: NOT_EXPIRED_AT },
+      currentPlayerStatus: 'dropped',
+      existingBids: [],
+    })
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(admin)
+
+    const res = await POST(makeRequest(), makeParams())
+    // Should auto-bid, not return { status: 'not_expired' }
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).not.toBe('not_expired')
+    expect(admin.bidsInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ player_id: 'player-2' })
     )
   })
 

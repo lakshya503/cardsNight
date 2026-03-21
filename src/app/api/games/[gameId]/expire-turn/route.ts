@@ -39,16 +39,12 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Game not found or not in progress' }, { status: 404 })
   }
 
-  // Fetch room for turn_timer_seconds
+  // Fetch room for turn_timer_seconds (still needed for non-dropped turns)
   const { data: room } = await admin
     .from('rooms')
     .select('turn_timer_seconds')
     .eq('id', game.room_id)
     .maybeSingle()
-
-  if (!room || room.turn_timer_seconds === null) {
-    return NextResponse.json({ error: 'Turn timer not configured for this room' }, { status: 422 })
-  }
 
   // Verify caller is an active player in this game's room
   const { data: roomPlayer } = await admin
@@ -77,10 +73,26 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'No active round' }, { status: 422 })
   }
 
-  // Check whether the timer has genuinely expired
-  const expiredAt = new Date(round.turn_started_at).getTime() + room.turn_timer_seconds * 1000
-  if (Date.now() < expiredAt - CLOCK_SKEW_MS) {
-    return NextResponse.json({ status: 'not_expired' }, { status: 200 })
+  // Check if the current player is dropped — dropped players bypass the timer check entirely
+  // so that auto-resolution works even in rooms without a turn timer configured.
+  const { data: currentPlayerRecord } = await admin
+    .from('room_players')
+    .select('status')
+    .eq('room_id', game.room_id)
+    .eq('user_id', round.current_player_id as string)
+    .maybeSingle()
+
+  const isDroppedTurn = currentPlayerRecord?.status === 'dropped'
+
+  if (!isDroppedTurn) {
+    // Normal timer path: require a configured timer and verify it has expired
+    if (!room || room.turn_timer_seconds === null) {
+      return NextResponse.json({ error: 'Turn timer not configured for this room' }, { status: 422 })
+    }
+    const expiredAt = new Date(round.turn_started_at).getTime() + room.turn_timer_seconds * 1000
+    if (Date.now() < expiredAt - CLOCK_SKEW_MS) {
+      return NextResponse.json({ status: 'not_expired' }, { status: 200 })
+    }
   }
 
   // Atomically claim this turn resolution to prevent double-resolution under concurrent requests.
@@ -362,14 +374,19 @@ async function autoResolvePlay(
 
   const roundScores = scoreRound(bidsRecord, tricksWonRecord)
 
+  // Only insert round_scores for active players — dropped players score 0 for this round
+  // (their bids/trick_cards exist for game mechanics but they don't earn points)
+  const activePlayerIds = new Set(players.map((p) => p.user_id))
   await admin.from('round_scores').insert(
-    Object.entries(roundScores).map(([playerId, score]) => ({
-      round_id: round.id,
-      player_id: playerId,
-      score,
-      bid: bidsRecord[playerId] ?? 0,
-      tricks_won: tricksWonRecord[playerId] ?? 0,
-    }))
+    Object.entries(roundScores)
+      .filter(([playerId]) => activePlayerIds.has(playerId))
+      .map(([playerId, score]) => ({
+        round_id: round.id,
+        player_id: playerId,
+        score,
+        bid: bidsRecord[playerId] ?? 0,
+        tricks_won: tricksWonRecord[playerId] ?? 0,
+      }))
   )
 
   await admin
