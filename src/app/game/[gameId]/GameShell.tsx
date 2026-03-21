@@ -18,16 +18,16 @@ function TrickProgress({ won, bid }: { won: number; bid: number }) {
     )
   }
   const over = won > bid
-  const dotColor = over ? '#EF4444' : '#10B981'
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex gap-0.5">
         {Array.from({ length: bid }, (_, i) => (
           <div
             key={i}
+            className={i < won ? (over ? 'bg-red-500' : 'bg-emerald-500') : ''}
             style={{
               width: '10px', height: '5px', borderRadius: '2px',
-              backgroundColor: i < won ? dotColor : 'rgba(255,255,255,0.12)',
+              ...(i >= won && { backgroundColor: 'var(--color-surface-raised)' }),
               transition: 'background-color 0.3s',
             }}
           />
@@ -35,11 +35,12 @@ function TrickProgress({ won, bid }: { won: number; bid: number }) {
         {over && Array.from({ length: won - bid }, (_, i) => (
           <div
             key={`x-${i}`}
-            style={{ width: '10px', height: '5px', borderRadius: '2px', backgroundColor: '#EF4444' }}
+            className="bg-red-500"
+            style={{ width: '10px', height: '5px', borderRadius: '2px' }}
           />
         ))}
       </div>
-      <span className="text-xs tabular-nums" style={{ color: over ? '#EF4444' : 'var(--color-text-muted)' }}>
+      <span className={`text-xs tabular-nums ${over ? 'text-red-400' : ''}`} style={over ? {} : { color: 'var(--color-text-muted)' }}>
         {won}/{bid}
       </span>
     </div>
