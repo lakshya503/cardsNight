@@ -134,11 +134,11 @@ describe('POST /api/rooms/[code]/start', () => {
     const json = await res.json()
     expect(json).toEqual({ gameId: 'game-id' })
 
-    // Verify rounds insert includes turn_started_at as string
+    // Verify rounds insert includes turn_started_at as ISO 8601 string
     const roundsTable = adminMock.from('rounds')
     const roundsInsertMock = roundsTable.insert as ReturnType<typeof vi.fn>
     const roundsInsertArg = roundsInsertMock.mock.calls[0]?.[0]
-    expect(typeof roundsInsertArg.turn_started_at).toBe('string')
+    expect(roundsInsertArg.turn_started_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
   })
 
   it('returns 500 if game insert fails', async () => {

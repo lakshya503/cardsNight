@@ -308,7 +308,7 @@ describe('POST /api/games/[gameId]/play', () => {
       }
     }
     expect(updateArg).not.toBeNull()
-    expect(typeof updateArg!.turn_started_at).toBe('string')
+    expect(updateArg!.turn_started_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
   })
 
   it('returns 200 trick_complete with winnerId when last card in trick and more tricks remain', async () => {
@@ -343,7 +343,7 @@ describe('POST /api/games/[gameId]/play', () => {
       }
     }
     expect(updateArg).not.toBeNull()
-    expect(typeof updateArg!.turn_started_at).toBe('string')
+    expect(updateArg!.turn_started_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
   })
 
   it('returns 200 round_complete when last trick of the round is completed', async () => {
@@ -457,6 +457,6 @@ describe('POST /api/games/[gameId]/play', () => {
 
     expect(insertArg).not.toBeNull()
     expect(insertArg!.current_player_id).toBe('player-1')
-    expect(typeof insertArg!.turn_started_at).toBe('string')
+    expect(insertArg!.turn_started_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
   })
 })

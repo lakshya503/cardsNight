@@ -242,7 +242,7 @@ describe('POST /api/games/[gameId]/bid', () => {
       }
     }
     expect(updateArg).not.toBeNull()
-    expect(typeof updateArg!.turn_started_at).toBe('string')
+    expect(updateArg!.turn_started_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
   })
 
   it('returns 200 with status playing and inserts trick when last bidder bids', async () => {
@@ -273,7 +273,7 @@ describe('POST /api/games/[gameId]/bid', () => {
       }
     }
     expect(updateArg).not.toBeNull()
-    expect(typeof updateArg!.turn_started_at).toBe('string')
+    expect(updateArg!.turn_started_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
   })
 
   it('sets first trick leader to previous round last trick winner when last bidder bids in round 2', async () => {
