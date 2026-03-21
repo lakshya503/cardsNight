@@ -26,7 +26,10 @@ export function TurnTimer({ turnStartedAt, turnTimerSeconds, gameId }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turnStartedAt])
 
-  // Tick every second; fire expire endpoint once when time runs out
+  // Tick every second; fire expire endpoint once when time runs out.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- computeRemaining re-reads Date.now()
+  // on each tick so the closure over turnStartedAt/totalMs is intentionally stable per-turn;
+  // the effect correctly re-registers when those values change via the explicit dep array.
   useEffect(() => {
     const interval = setInterval(() => {
       const remaining = computeRemaining()
@@ -39,7 +42,6 @@ export function TurnTimer({ turnStartedAt, turnTimerSeconds, gameId }: Props) {
     }, 1000)
 
     return () => clearInterval(interval)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turnStartedAt, turnTimerSeconds, gameId])
 
   const ratio = totalMs > 0 ? remainingMs / totalMs : 0

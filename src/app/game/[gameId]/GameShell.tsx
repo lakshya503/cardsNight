@@ -377,7 +377,7 @@ export function GameShell({
       const supabase = createClient()
       const { data } = await supabase
         .from('rounds')
-        .select('id, status, current_player_id, round_number, hand_size, trump_suit, trump_card_value')
+        .select('id, status, current_player_id, round_number, hand_size, trump_suit, trump_card_value, turn_started_at')
         .eq('game_id', gameId)
         .neq('status', 'complete')
         .maybeSingle()
@@ -387,7 +387,8 @@ export function GameShell({
         !cur ||
         data.id !== cur.id ||
         data.current_player_id !== cur.current_player_id ||
-        data.status !== cur.status
+        data.status !== cur.status ||
+        data.turn_started_at !== cur.turn_started_at
       ) {
         router.refresh()
       }

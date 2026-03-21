@@ -374,7 +374,7 @@ async function autoResolvePlay(
 
   await admin
     .from('rounds')
-    .update({ status: 'complete', current_player_id: null })
+    .update({ status: 'complete', current_player_id: null, turn_started_at: null })
     .eq('id', round.id)
 
   if (round.hand_size > 1) {
