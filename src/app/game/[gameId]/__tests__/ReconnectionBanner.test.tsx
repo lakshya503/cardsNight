@@ -74,6 +74,20 @@ describe('ReconnectionBanner', () => {
     expect(onExpired).toHaveBeenCalledOnce()
   })
 
+  it('calls onExpired when the component mounts with a timer already past expiry', async () => {
+    const onExpired = vi.fn()
+    render(
+      <ReconnectionBanner
+        displayName="Zara"
+        disconnectedAt={disconnectedSecondsAgo(70)} // 10s past 60s window
+        onExpired={onExpired}
+      />
+    )
+    // First interval tick should detect remaining === 0 and fire
+    await act(async () => { vi.advanceTimersByTime(1000) })
+    expect(onExpired).toHaveBeenCalledOnce()
+  })
+
   it('does not call onExpired a second time after it already fired', async () => {
     const onExpired = vi.fn()
     render(

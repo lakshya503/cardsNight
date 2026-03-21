@@ -127,6 +127,7 @@ describe('POST /api/games/[gameId]/disconnect', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.status).toBe('disconnected')
+    expect(body.disconnected_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
 
     // The conditional UPDATE must target: room_id, user_id=disconnectedUserId, status='active'
     const updateArg = (admin.rpUpdate as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>

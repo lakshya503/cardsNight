@@ -18,6 +18,9 @@ export function ReconnectionBanner({ displayName, disconnectedAt, onExpired }: P
 
   const [remainingMs, setRemainingMs] = useState(computeRemaining)
   const firedRef = useRef(false)
+  // Stable ref for onExpired so the interval never re-creates due to parent re-renders
+  const onExpiredRef = useRef(onExpired)
+  useEffect(() => { onExpiredRef.current = onExpired }, [onExpired])
 
   // Reset when the disconnectedAt changes (new disconnect event)
   // eslint-disable-next-line react-hooks/exhaustive-deps -- computeRemaining is stable per disconnect; only resets on identity change
@@ -26,8 +29,8 @@ export function ReconnectionBanner({ displayName, disconnectedAt, onExpired }: P
     setRemainingMs(computeRemaining())
   }, [disconnectedAt])
 
-  // Tick every second; fire onExpired once when the window closes
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- computeRemaining re-reads Date.now() on each tick; closure over disconnectedAt is intentionally stable per disconnect
+  // Tick every second; fire onExpired once when the window closes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- onExpiredRef is stable; computeRemaining re-reads Date.now() on each tick so the closure over disconnectedAt is intentionally stable per disconnect
   useEffect(() => {
     const interval = setInterval(() => {
       const remaining = computeRemaining()
@@ -35,12 +38,12 @@ export function ReconnectionBanner({ displayName, disconnectedAt, onExpired }: P
 
       if (remaining === 0 && !firedRef.current) {
         firedRef.current = true
-        onExpired()
+        onExpiredRef.current()
       }
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [disconnectedAt, onExpired])
+  }, [disconnectedAt])
 
   const remainingSeconds = Math.ceil(remainingMs / 1000)
   const isUrgent = remainingSeconds < 10 && remainingMs > 0

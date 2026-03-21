@@ -397,13 +397,31 @@ export function GameShell({
           for (const presence of leftPresences) {
             const departed = (presence as { userId?: string }).userId
             if (departed && departed !== userId) {
-              const disconnectedAt = new Date().toISOString()
-              setDisconnectedPlayers((prev) => new Map(prev).set(departed, disconnectedAt))
-              fetch(`/api/games/${gameId}/disconnect`, {
+              // Optimistic timestamp; overwritten with server value on success
+              setDisconnectedPlayers((prev) => new Map(prev).set(departed, new Date().toISOString()))
+
+              const body = JSON.stringify({ disconnectedUserId: departed })
+              const doFetch = () => fetch(`/api/games/${gameId}/disconnect`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ disconnectedUserId: departed }),
-              }).catch((err) => console.error('[Presence] disconnect fetch failed:', err))
+                body,
+              })
+
+              doFetch()
+                .then(async (res) => {
+                  if (!res.ok) throw new Error(`disconnect ${res.status}`)
+                  const data = await res.json() as { disconnected_at?: string }
+                  if (data.disconnected_at) {
+                    setDisconnectedPlayers((prev) => {
+                      const next = new Map(prev)
+                      if (next.has(departed)) next.set(departed, data.disconnected_at!)
+                      return next
+                    })
+                  }
+                })
+                .catch(() => doFetch().catch((err) =>
+                  console.error('[Presence] disconnect fetch failed after retry:', err)
+                ))
             }
           }
         })
@@ -435,7 +453,7 @@ export function GameShell({
       active = false
       if (presenceChannel) supabase.removeChannel(presenceChannel)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- gameId and userId are stable for the session lifetime
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- gameId is a route param (stable); userId comes from server auth (stable for session lifetime); neither changes without a full navigation
   }, [gameId, userId])
 
   // Polling fallback: if Realtime missed an event, detect state drift and refresh.
