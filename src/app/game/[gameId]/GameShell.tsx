@@ -8,6 +8,7 @@ import { BiddingPanel } from './BiddingPanel'
 import { TrickPanel } from './TrickPanel'
 import { Scoreboard } from './Scoreboard'
 import { TurnTimer } from './TurnTimer'
+import { ReconnectionBanner } from './ReconnectionBanner'
 import type { Card, Suit, CardValue } from '@/lib/game/types'
 
 function TrickProgress({ won, bid }: { won: number; bid: number }) {
@@ -142,6 +143,8 @@ export function GameShell({
   const [summaryBids, setSummaryBids] = useState<Bid[]>([])
   const [summaryRoundScores, setSummaryRoundScores] = useState<Record<string, number>>({})
   const [showRoundSummary, setShowRoundSummary] = useState(false)
+  // disconnectedPlayers: userId → disconnectedAt ISO string
+  const [disconnectedPlayers, setDisconnectedPlayers] = useState<Map<string, string>>(new Map())
 
   const roundRef = useRef<Round | null>(initialRound)
   const currentTrickRef = useRef<Trick | null>(initialCurrentTrick)
@@ -381,12 +384,8 @@ export function GameShell({
     let active = true
     let presenceChannel: ReturnType<typeof supabase.channel> | null = null
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    function setup() {
       if (!active) return
-      if (session?.access_token) {
-        supabase.realtime.setAuth(session.access_token)
-      }
-
       const channel = supabase
         .channel(`presence:game:${gameId}`)
         .on('presence', { event: 'leave' }, ({ leftPresences }) => {
@@ -394,29 +393,94 @@ export function GameShell({
           for (const presence of leftPresences) {
             const departed = (presence as { userId?: string }).userId
             if (departed && departed !== userId) {
-              fetch(`/api/games/${gameId}/disconnect`, {
+              // Optimistic timestamp; overwritten with server value on success.
+              // Capture the token so the fetch callback can verify it hasn't been
+              // superseded by a subsequent leave event for the same player.
+              const optimisticTs = new Date().toISOString()
+              setDisconnectedPlayers((prev) => new Map(prev).set(departed, optimisticTs))
+
+              const body = JSON.stringify({ disconnectedUserId: departed })
+              const doFetch = () => fetch(`/api/games/${gameId}/disconnect`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ disconnectedUserId: departed }),
-              }).catch((err) => console.error('[Presence] disconnect fetch failed:', err))
+                body,
+              })
+
+              function applyServerTs(serverTs: string) {
+                setDisconnectedPlayers((prev) => {
+                  const next = new Map(prev)
+                  // Only overwrite if the current value is still our optimistic timestamp.
+                  // A subsequent leave event may have set a newer optimistic timestamp.
+                  if (next.get(departed) === optimisticTs) next.set(departed, serverTs)
+                  return next
+                })
+              }
+
+              doFetch()
+                .then(async (res) => {
+                  if (!active) return
+                  if (!res.ok) throw new Error(`disconnect ${res.status}`)
+                  const data = await res.json() as { disconnected_at?: string }
+                  if (data.disconnected_at) applyServerTs(data.disconnected_at)
+                })
+                .catch(() => {
+                  if (!active) return
+                  doFetch()
+                    .then(async (res) => {
+                      if (!active) return
+                      if (!res.ok) return
+                      const data = await res.json() as { disconnected_at?: string }
+                      if (data.disconnected_at) applyServerTs(data.disconnected_at)
+                    })
+                    .catch((err) => {
+                      if (!active) return
+                      console.error('[Presence] disconnect fetch failed after retry:', err)
+                    })
+                })
             }
           }
         })
-        .subscribe(async (status) => {
+        .on('presence', { event: 'join' }, ({ newPresences }) => {
           if (!active) return
-          if (status === 'SUBSCRIBED') {
-            await channel.track({ userId })
+          for (const presence of newPresences) {
+            const joined = (presence as { userId?: string }).userId
+            if (joined && joined !== userId) {
+              setDisconnectedPlayers((prev) => {
+                if (!prev.has(joined)) return prev
+                const next = new Map(prev)
+                next.delete(joined)
+                return next
+              })
+            }
           }
         })
-
       presenceChannel = channel
+
+      channel.subscribe(async (status) => {
+        if (!active) return
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ userId })
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('[Presence] channel error, retrying in 2s:', status)
+          supabase.removeChannel(channel)
+          setTimeout(setup, 2000)
+        }
+      })
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return
+      if (session?.access_token) {
+        supabase.realtime.setAuth(session.access_token)
+      }
+      setup()
     })
 
     return () => {
       active = false
       if (presenceChannel) supabase.removeChannel(presenceChannel)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- gameId and userId are stable for the session lifetime
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- gameId is a route param (stable); userId comes from server auth (stable for session lifetime); neither changes without a full navigation
   }, [gameId, userId])
 
   // Polling fallback: if Realtime missed an event, detect state drift and refresh.
@@ -565,6 +629,29 @@ export function GameShell({
             >
               {statusMessage}
             </p>
+          )}
+
+          {/* Reconnection banners — one per disconnected player */}
+          {disconnectedPlayers.size > 0 && (
+            <div className="flex flex-col gap-2 w-full max-w-sm">
+              {[...disconnectedPlayers.entries()].map(([playerId, disconnectedAt]) => {
+                const displayName = playerMap[playerId]?.displayName ?? 'A player'
+                return (
+                  <ReconnectionBanner
+                    key={playerId}
+                    displayName={displayName}
+                    disconnectedAt={disconnectedAt}
+                    onExpired={() =>
+                      setDisconnectedPlayers((prev) => {
+                        const next = new Map(prev)
+                        next.delete(playerId)
+                        return next
+                      })
+                    }
+                  />
+                )
+              })}
+            </div>
           )}
 
           {/* Turn timer — only when host configured a timer and a turn is active */}

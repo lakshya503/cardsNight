@@ -57,9 +57,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   // Conditionally update the disconnected player — only if still 'active' (idempotent)
+  const disconnectedAt = new Date().toISOString()
   const { data: updated, error: updateError } = await admin
     .from('room_players')
-    .update({ status: 'disconnected', disconnected_at: new Date().toISOString() })
+    .update({ status: 'disconnected', disconnected_at: disconnectedAt })
     .eq('room_id', game.room_id)
     .eq('user_id', disconnectedUserId)
     .eq('status', 'active')
@@ -74,5 +75,5 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ status: 'already_disconnected' }, { status: 200 })
   }
 
-  return NextResponse.json({ status: 'disconnected' }, { status: 200 })
+  return NextResponse.json({ status: 'disconnected', disconnected_at: disconnectedAt }, { status: 200 })
 }
