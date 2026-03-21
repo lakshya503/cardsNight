@@ -23,8 +23,8 @@ import type { Card, TrickCard } from '../types'
 
 describe('getStartingHandSize', () => {
   it.each([
-    [2, 10],
-    [3, 10],
+    [2, 8],
+    [3, 8],
     [4, 8],
     [5, 8],
     [6, 8],

@@ -33,7 +33,6 @@ function shuffle<T>(arr: T[]): T[] {
 // ---------------------------------------------------------------------------
 
 export function getStartingHandSize(playerCount: number): number {
-  if (playerCount <= 3) return 10
   if (playerCount <= 6) return 8
   if (playerCount === 7) return 7
   return 6 // 8 players
