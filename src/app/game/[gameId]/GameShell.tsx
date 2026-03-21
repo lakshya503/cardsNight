@@ -371,6 +371,54 @@ export function GameShell({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId, router])
 
+  // Presence: detect player disconnects via heartbeat LEAVE events.
+  // Each client tracks its own presence; on LEAVE, the first detecting client
+  // calls the disconnect endpoint (idempotent — concurrent calls no-op).
+  // Peer-reporting threat model: any active player in the same room can report
+  // another. The UPDATE is scoped to room_id, limiting blast radius to the game.
+  useEffect(() => {
+    const supabase = createClient()
+    let active = true
+    let presenceChannel: ReturnType<typeof supabase.channel> | null = null
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return
+      if (session?.access_token) {
+        supabase.realtime.setAuth(session.access_token)
+      }
+
+      const channel = supabase
+        .channel(`presence:game:${gameId}`)
+        .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+          if (!active) return
+          for (const presence of leftPresences) {
+            const departed = (presence as { userId?: string }).userId
+            if (departed && departed !== userId) {
+              fetch(`/api/games/${gameId}/disconnect`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ disconnectedUserId: departed }),
+              }).catch((err) => console.error('[Presence] disconnect fetch failed:', err))
+            }
+          }
+        })
+        .subscribe(async (status) => {
+          if (!active) return
+          if (status === 'SUBSCRIBED') {
+            await channel.track({ userId })
+          }
+        })
+
+      presenceChannel = channel
+    })
+
+    return () => {
+      active = false
+      if (presenceChannel) supabase.removeChannel(presenceChannel)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- gameId and userId are stable for the session lifetime
+  }, [gameId, userId])
+
   // Polling fallback: if Realtime missed an event, detect state drift and refresh.
   useEffect(() => {
     const interval = setInterval(async () => {
