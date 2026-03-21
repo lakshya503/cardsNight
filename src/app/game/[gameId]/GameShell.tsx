@@ -8,6 +8,7 @@ import { BiddingPanel } from './BiddingPanel'
 import { TrickPanel } from './TrickPanel'
 import { Scoreboard } from './Scoreboard'
 import { TurnTimer } from './TurnTimer'
+import { ReconnectionBanner } from './ReconnectionBanner'
 import type { Card, Suit, CardValue } from '@/lib/game/types'
 
 function TrickProgress({ won, bid }: { won: number; bid: number }) {
@@ -142,6 +143,8 @@ export function GameShell({
   const [summaryBids, setSummaryBids] = useState<Bid[]>([])
   const [summaryRoundScores, setSummaryRoundScores] = useState<Record<string, number>>({})
   const [showRoundSummary, setShowRoundSummary] = useState(false)
+  // disconnectedPlayers: userId → disconnectedAt ISO string
+  const [disconnectedPlayers, setDisconnectedPlayers] = useState<Map<string, string>>(new Map())
 
   const roundRef = useRef<Round | null>(initialRound)
   const currentTrickRef = useRef<Trick | null>(initialCurrentTrick)
@@ -394,11 +397,27 @@ export function GameShell({
           for (const presence of leftPresences) {
             const departed = (presence as { userId?: string }).userId
             if (departed && departed !== userId) {
+              const disconnectedAt = new Date().toISOString()
+              setDisconnectedPlayers((prev) => new Map(prev).set(departed, disconnectedAt))
               fetch(`/api/games/${gameId}/disconnect`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ disconnectedUserId: departed }),
               }).catch((err) => console.error('[Presence] disconnect fetch failed:', err))
+            }
+          }
+        })
+        .on('presence', { event: 'join' }, ({ newPresences }) => {
+          if (!active) return
+          for (const presence of newPresences) {
+            const joined = (presence as { userId?: string }).userId
+            if (joined && joined !== userId) {
+              setDisconnectedPlayers((prev) => {
+                if (!prev.has(joined)) return prev
+                const next = new Map(prev)
+                next.delete(joined)
+                return next
+              })
             }
           }
         })
@@ -565,6 +584,29 @@ export function GameShell({
             >
               {statusMessage}
             </p>
+          )}
+
+          {/* Reconnection banners — one per disconnected player */}
+          {disconnectedPlayers.size > 0 && (
+            <div className="flex flex-col gap-2 w-full max-w-sm">
+              {[...disconnectedPlayers.entries()].map(([playerId, disconnectedAt]) => {
+                const displayName = playerMap[playerId]?.displayName ?? 'A player'
+                return (
+                  <ReconnectionBanner
+                    key={playerId}
+                    displayName={displayName}
+                    disconnectedAt={disconnectedAt}
+                    onExpired={() =>
+                      setDisconnectedPlayers((prev) => {
+                        const next = new Map(prev)
+                        next.delete(playerId)
+                        return next
+                      })
+                    }
+                  />
+                )
+              })}
+            </div>
           )}
 
           {/* Turn timer — only when host configured a timer and a turn is active */}
