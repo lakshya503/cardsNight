@@ -384,12 +384,8 @@ export function GameShell({
     let active = true
     let presenceChannel: ReturnType<typeof supabase.channel> | null = null
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    function setup() {
       if (!active) return
-      if (session?.access_token) {
-        supabase.realtime.setAuth(session.access_token)
-      }
-
       const channel = supabase
         .channel(`presence:game:${gameId}`)
         .on('presence', { event: 'leave' }, ({ leftPresences }) => {
@@ -412,6 +408,7 @@ export function GameShell({
 
               doFetch()
                 .then(async (res) => {
+                  if (!active) return
                   if (!res.ok) throw new Error(`disconnect ${res.status}`)
                   const data = await res.json() as { disconnected_at?: string }
                   if (data.disconnected_at) {
@@ -426,9 +423,10 @@ export function GameShell({
                 })
                 .catch(() => {
                   if (!active) return
-                  doFetch().catch((err) =>
+                  doFetch().catch((err) => {
+                    if (!active) return
                     console.error('[Presence] disconnect fetch failed after retry:', err)
-                  )
+                  })
                 })
             }
           }
@@ -452,11 +450,21 @@ export function GameShell({
           if (status === 'SUBSCRIBED') {
             await channel.track({ userId })
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.error('[Presence] channel error:', status)
+            console.error('[Presence] channel error, retrying in 2s:', status)
+            supabase.removeChannel(channel)
+            setTimeout(setup, 2000)
           }
         })
 
       presenceChannel = channel
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return
+      if (session?.access_token) {
+        supabase.realtime.setAuth(session.access_token)
+      }
+      setup()
     })
 
     return () => {
