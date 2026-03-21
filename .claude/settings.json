@@ -3,5 +3,18 @@
     "frontend-design@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
     "compound-engineering@compound-engineering-plugin": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const i=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));const cmd=(i.tool_input&&i.tool_input.command)||'';if(/^git commit/.test(cmd.trim())){console.log('[hook] Commit detected — run test-runner and code-reviewer agents in the background now. Any findings are top priority before merging to main.');}\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
   }
 }
