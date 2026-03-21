@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Hand Size: 2–3 Players] — 2026-03-20
+
+### Changed
+- Starting hand size for 2–3 player games reduced from 10 to 8 cards, matching the 4–6 player rule.
+  All 2–6 player games now start with 8 cards. Shortens a 2–3 player game from 10 rounds to 8.
+
+---
+
 ## [Framer Motion Animations] — 2026-03-19
 
 ### Added
@@ -60,7 +68,7 @@ M2 goal: 4+ friends play a complete game of Judgement with correct rules, scorin
 - `GET /api/games/[gameId]/hand` — returns authenticated player's current hand (dealt cards minus played)
 - `POST /api/games/[gameId]/play` — validates card play (suit-follow rule), updates trick state, resolves trick winner; after last trick: scores round, starts next round or ends game
 - Full round lifecycle: `bidding → playing → complete`; game lifecycle: `in_progress → finished`
-- `scoreRound` and `determinePlacements` game logic (exact bid = 10×bid, 0-bid exact = 10 pts, miss = 0; dense ranking)
+- `scoreRound` and `determinePlacements` game logic (exact bid = 10 + (10 × bid), miss = 0; dense ranking) — see [Scoring Formula Update] for the formula change made post-M2
 - `dealHands` and `drawTrump` called server-side per round; hands stored in immutable `hands` table rows
 - Game page (`/game/[gameId]`) — Server Component with full initial state (round, bids, hand, trick, cumulative scores)
 - `GameShell` client component — stable Realtime channel subscriptions for all game tables; uses refs to avoid stale closure / channel teardown on state change

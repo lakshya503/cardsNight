@@ -157,7 +157,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, currentPlayerNa
             ))}
           </div>
           <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            Waiting for {currentPlayerName ?? 'other player'} to play…
+        Waiting for {currentPlayerName ?? 'other player'} to play…
           </p>
         </div>
       )}

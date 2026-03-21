@@ -4,7 +4,7 @@ A web-based multiplayer card game platform. Send a friend a link, sign in with G
 
 ## What it is
 
-cardsNight hosts invite-only card game rooms. The host creates a room, shares the code or link, and friends join — no accounts beyond Google Sign-In required. The MVP ships with **Judgement**, a trick-taking game for 4–10 players.
+cardsNight hosts invite-only card game rooms. The host creates a room, shares the code or link, and friends join — no accounts beyond Google Sign-In required. The MVP ships with **Judgement**, a trick-taking game for 2–8 players.
 
 ## Game: Judgement
 

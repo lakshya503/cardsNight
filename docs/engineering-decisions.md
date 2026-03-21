@@ -9,7 +9,8 @@
 | Layer | Choice |
 |-------|--------|
 | Frontend | Next.js 16 (App Router, TypeScript) |
-| Styling | Tailwind CSS |
+| Styling | Tailwind CSS v4 with `@theme` design tokens |
+| Animations | Framer Motion v12 |
 | Auth | Supabase Auth (Google OAuth) |
 | Database | Supabase (Postgres) |
 | Real-time | Supabase Realtime (Postgres Changes) |
@@ -65,6 +66,18 @@ The client never writes game state directly. Trusting client-submitted state lea
 
 ### Tailwind CSS
 **Why:** Utility-first CSS pairs well with component-based React development. Fast to iterate on, no naming bikeshedding. Widely documented.
+
+---
+
+### Framer Motion (Animations)
+**Why:** Adds production-quality animations without writing raw CSS keyframes or managing transition state manually. The two features that drove the decision:
+
+1. **`layoutId` shared element transitions** — a card played from hand to trick center is the same DOM element in a different position; `layoutId` handles the interpolated flight path automatically.
+2. **`AnimatePresence`** — correct mount/unmount animation (player join/leave in waiting room, results stagger reveal) requires knowing when elements exit the tree. React doesn't provide this natively; `AnimatePresence` wraps it.
+
+**Why not plain CSS transitions:** CSS handles enter animations cleanly but exit animations require holding elements in the DOM and coordinating unmount timing manually — this gets complex fast with a dynamic player list and trick resolution.
+
+**Version:** v12 (installed post-M2). No breaking changes from v11 for our usage patterns.
 
 ---
 
@@ -150,6 +163,7 @@ Never commit `.env.local`. Required variables:
 NEXT_PUBLIC_SUPABASE_URL=       # Supabase project URL (safe to expose)
 NEXT_PUBLIC_SUPABASE_ANON_KEY=  # Supabase anon key (safe to expose)
 SUPABASE_SERVICE_ROLE_KEY=      # Service role key — server-side only, never expose to client
+NEXT_PUBLIC_SITE_URL=           # Production URL (e.g. https://cardsnight.vercel.app) — required for OAuth callback in production; falls back to http://localhost:3000 for local dev
 ```
 
 ---
