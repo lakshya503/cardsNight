@@ -109,6 +109,14 @@ describe('POST /api/games/[gameId]/disconnect', () => {
     expect(res.status).toBe(403)
   })
 
+  it('returns 400 when disconnectedUserId is the caller (cannot self-disconnect)', async () => {
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock({ id: 'player-1' }))
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(makeAdminMock())
+    // caller is player-1, trying to report themselves
+    const res = await POST(makeRequest('game-id', { disconnectedUserId: 'player-1' }), makeParams())
+    expect(res.status).toBe(400)
+  })
+
   // ── Happy path ───────────────────────────────────────────────────────────────
   it('marks the player as disconnected and returns { status: disconnected }', async () => {
     ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())

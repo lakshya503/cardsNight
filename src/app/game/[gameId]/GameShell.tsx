@@ -374,9 +374,12 @@ export function GameShell({
   // Presence: detect player disconnects via heartbeat LEAVE events.
   // Each client tracks its own presence; on LEAVE, the first detecting client
   // calls the disconnect endpoint (idempotent — concurrent calls no-op).
+  // Peer-reporting threat model: any active player in the same room can report
+  // another. The UPDATE is scoped to room_id, limiting blast radius to the game.
   useEffect(() => {
     const supabase = createClient()
     let active = true
+    let presenceChannel: ReturnType<typeof supabase.channel> | null = null
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!active) return
@@ -395,7 +398,7 @@ export function GameShell({
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ disconnectedUserId: departed }),
-              })
+              }).catch((err) => console.error('[Presence] disconnect fetch failed:', err))
             }
           }
         })
@@ -406,13 +409,13 @@ export function GameShell({
           }
         })
 
-      return () => {
-        active = false
-        supabase.removeChannel(channel)
-      }
+      presenceChannel = channel
     })
 
-    return () => { active = false }
+    return () => {
+      active = false
+      if (presenceChannel) supabase.removeChannel(presenceChannel)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- gameId and userId are stable for the session lifetime
   }, [gameId, userId])
 

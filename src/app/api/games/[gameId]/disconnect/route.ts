@@ -27,6 +27,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'disconnectedUserId is required' }, { status: 400 })
   }
 
+  // A player cannot report themselves — self-disconnection is handled by Presence cleanup
+  if (disconnectedUserId === user.id) {
+    return NextResponse.json({ error: 'Cannot report yourself as disconnected' }, { status: 400 })
+  }
+
   // Fetch game
   const { data: game } = await admin
     .from('games')
