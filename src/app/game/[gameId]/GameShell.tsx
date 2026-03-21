@@ -371,6 +371,51 @@ export function GameShell({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId, router])
 
+  // Presence: detect player disconnects via heartbeat LEAVE events.
+  // Each client tracks its own presence; on LEAVE, the first detecting client
+  // calls the disconnect endpoint (idempotent — concurrent calls no-op).
+  useEffect(() => {
+    const supabase = createClient()
+    let active = true
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return
+      if (session?.access_token) {
+        supabase.realtime.setAuth(session.access_token)
+      }
+
+      const channel = supabase
+        .channel(`presence:game:${gameId}`)
+        .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+          if (!active) return
+          for (const presence of leftPresences) {
+            const departed = (presence as { userId?: string }).userId
+            if (departed && departed !== userId) {
+              fetch(`/api/games/${gameId}/disconnect`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ disconnectedUserId: departed }),
+              })
+            }
+          }
+        })
+        .subscribe(async (status) => {
+          if (!active) return
+          if (status === 'SUBSCRIBED') {
+            await channel.track({ userId })
+          }
+        })
+
+      return () => {
+        active = false
+        supabase.removeChannel(channel)
+      }
+    })
+
+    return () => { active = false }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- gameId and userId are stable for the session lifetime
+  }, [gameId, userId])
+
   // Polling fallback: if Realtime missed an event, detect state drift and refresh.
   useEffect(() => {
     const interval = setInterval(async () => {
