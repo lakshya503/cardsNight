@@ -348,11 +348,11 @@ describe('autoResolveBid', () => {
     expect(updateArg.current_player_id).toBe('player-2')
   })
 
-  it('treats last ACTIVE bidder as last bidder when a player is dropped', async () => {
-    // 3 players dealt hands; player-2 is dropped.
-    // player-1 already bid (1 existing bid). player-3 is the last ACTIVE bidder.
-    // Bug: isLastBidder = (1 === 3-1=2) → false → stays bidding (WRONG)
-    // Fix: isLastBidder = (1 === activePlayers.length-1=1) → true → playing (CORRECT)
+  it('correctly triggers isLastBidder when dropped player bid is already in DB', async () => {
+    // Invariant: resolveDroppedTurnChain auto-inserts a bid for dropped players before
+    // advancing the turn to the next active player. So when autoResolveBid runs for
+    // player-3 (the last active bidder), player-2's auto-bid is ALREADY in existingBids.
+    // existingAmounts.length = 2 === players.length - 1 (3-1=2) → isLastBidder = true → playing.
     const playersWithDropped = [
       { user_id: 'player-1', seat_order: 0, status: 'active' },
       { user_id: 'player-2', seat_order: 1, status: 'dropped' },
@@ -361,7 +361,7 @@ describe('autoResolveBid', () => {
     const admin = makeBidAdminMock({
       handRows: [{ player_id: 'player-1' }, { player_id: 'player-2' }, { player_id: 'player-3' }],
       players: playersWithDropped,
-      existingBids: [{ amount: 1 }], // 1 bid placed (player-1)
+      existingBids: [{ amount: 1 }, { amount: 0 }], // player-1 bid + player-2 auto-bid already inserted
     })
     const round = { ...DEFAULT_ROUND, current_player_id: 'player-3', round_number: 1 }
     const result = await autoResolveBid(admin as unknown as ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>, 'game-1', 'room-1', round)
@@ -378,7 +378,8 @@ describe('autoResolveBid', () => {
     const admin = makeBidAdminMock({
       handRows: [{ player_id: 'player-1' }, { player_id: 'player-2' }, { player_id: 'player-3' }],
       players: playersWithDropped,
-      existingBids: [{ amount: 0 }], // 1 existing bid (from player-1) → player-3 is last of 2 ACTIVE players
+      // player-1 bid + player-2 auto-bid already in DB → player-3 is the last of players.length=3
+      existingBids: [{ amount: 0 }, { amount: 0 }],
     })
     const round = { ...DEFAULT_ROUND, current_player_id: 'player-3', round_number: 1 }
     const result = await autoResolveBid(admin as unknown as ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>, 'game-1', 'room-1', round)
@@ -532,39 +533,36 @@ describe('autoResolvePlay', () => {
     expect(insertedPlayerIds).toContain('player-1')
   })
 
-  it('completes trick when all active players played (dropped player excluded from count)', async () => {
-    // 4 players: p1, p3, p4 active; p2 dropped.
-    // p1 and p3 already played (2 cards in trick). p4 is current → plays now.
-    // totalPlayed = 3.
-    // Bug: 3 < players.length(4) → trick_in_progress (trick never closes)
-    // Fix: 3 < activePlayers.length(3) → false → trick completes
+  it('completes trick when dropped player card is already in existingTrickCards', async () => {
+    // Invariant: resolveDroppedTurnChain auto-plays for dropped players before the next
+    // active player's turn begins. So existingTrickCards ALREADY includes p2's auto-card.
+    // 3 players: p1 active, p2 dropped (auto-played), p3 active (current).
+    // existingTrickCards = [p1's card, p2's auto-card]. totalPlayed = 2+1 = 3 = players.length.
+    // totalPlayed < players.length(3) → false → trick completes.
     const playersWithDropped = [
       { user_id: 'player-1', seat_order: 0, status: 'active' },
       { user_id: 'player-2', seat_order: 1, status: 'dropped' },
       { user_id: 'player-3', seat_order: 2, status: 'active' },
-      { user_id: 'player-4', seat_order: 3, status: 'active' },
     ]
     const admin = makePlayAdminMock({
-      handRows: [
-        { player_id: 'player-1' }, { player_id: 'player-2' },
-        { player_id: 'player-3' }, { player_id: 'player-4' },
-      ],
+      handRows: [{ player_id: 'player-1' }, { player_id: 'player-2' }, { player_id: 'player-3' }],
       players: playersWithDropped,
       allTricks: [{ id: 'trick-1', trick_number: 1, led_suit: 'hearts', winner_id: null }],
       handRowCards: [{ suit: 'hearts', value: '2' }],
       playedByPlayer: [],
+      // p2's card already in DB (auto-played by resolveDroppedTurnChain before p3's turn)
       existingTrickCards: [
         { player_id: 'player-1', suit: 'hearts', value: 'K' },
-        { player_id: 'player-3', suit: 'hearts', value: 'Q' },
+        { player_id: 'player-2', suit: 'hearts', value: 'Q' },
       ],
       roundBids: [
         { player_id: 'player-1', amount: 0 },
+        { player_id: 'player-2', amount: 0 },
         { player_id: 'player-3', amount: 0 },
-        { player_id: 'player-4', amount: 0 },
       ],
       completedTricks: [],
     })
-    const round = { ...PLAYING_ROUND, hand_size: 1, current_player_id: 'player-4', round_number: 1 }
+    const round = { ...PLAYING_ROUND, hand_size: 1, current_player_id: 'player-3', round_number: 1 }
 
     const result = await autoResolvePlay(admin as unknown as ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>, 'game-1', 'room-1', round)
 
