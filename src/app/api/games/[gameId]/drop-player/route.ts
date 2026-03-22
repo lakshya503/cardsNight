@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse, type NextRequest } from 'next/server'
+import { resolveDroppedTurnChain } from '@/lib/game/autoResolve'
 
 const RECONNECT_WINDOW_MS = 60_000
 
@@ -27,6 +28,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     disconnectedUserId = body.disconnectedUserId
   } catch {
     return NextResponse.json({ error: 'disconnectedUserId is required' }, { status: 400 })
+  }
+
+  // Fix 1.2: Self-drop guard — a player cannot drop themselves
+  if (disconnectedUserId === user.id) {
+    return NextResponse.json({ error: 'Cannot drop yourself' }, { status: 400 })
   }
 
   // Fetch game
@@ -97,18 +103,27 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ status: 'already_dropped' }, { status: 200 })
   }
 
-  // Compute cumulative score earned before this drop
-  const { data: scores } = await admin
-    .from('round_scores')
-    .select('score')
-    .eq('player_id', disconnectedUserId)
+  // Fix 1.1: Compute cumulative score earned before this drop, scoped to this game only
+  // First get the round IDs for this game, then filter round_scores to those rounds.
+  const { data: gameRounds } = await admin.from('rounds').select('id').eq('game_id', gameId)
+  const gameRoundIds = (gameRounds ?? []).map((r) => r.id)
+  const { data: scores } = gameRoundIds.length > 0
+    ? await admin.from('round_scores').select('score').in('round_id', gameRoundIds).eq('player_id', disconnectedUserId)
+    : { data: [] }
 
   const totalScore = (scores ?? []).reduce((sum, r) => sum + r.score, 0)
 
-  // Record the loss — placement 0 indicates a mid-game drop (not a final placement)
-  const { error: insertError } = await admin
+  // Fix 1.4: Idempotent game_results — check if a row already exists before inserting
+  const { data: existingResult } = await admin
     .from('game_results')
-    .insert({
+    .select('id')
+    .eq('game_id', gameId)
+    .eq('player_id', disconnectedUserId)
+    .maybeSingle()
+
+  if (!existingResult) {
+    // Record the loss — placement 0 indicates a mid-game drop (not a final placement)
+    const { error: insertError } = await admin.from('game_results').insert({
       game_id: gameId,
       player_id: disconnectedUserId,
       placement: 0,
@@ -116,10 +131,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       total_score: totalScore,
     })
 
-  if (insertError) {
-    console.error('[drop-player] game_results insert error:', insertError)
-    return NextResponse.json({ error: 'Failed to record game result' }, { status: 500 })
+    if (insertError) {
+      console.error('[drop-player] game_results insert error:', insertError)
+      return NextResponse.json({ error: 'Failed to record game result' }, { status: 500 })
+    }
   }
+
+  // Fix 1.3: Server-side auto-resolve — if the dropped player holds the current turn,
+  // resolve it immediately so the game continues without client-side polling.
+  await resolveDroppedTurnChain(admin, gameId, game.room_id)
 
   return NextResponse.json({ status: 'dropped' }, { status: 200 })
 }

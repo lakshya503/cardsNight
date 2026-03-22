@@ -4,9 +4,13 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }))
+vi.mock('@/lib/game/autoResolve', () => ({
+  resolveDroppedTurnChain: vi.fn().mockResolvedValue(undefined),
+}))
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { resolveDroppedTurnChain } from '@/lib/game/autoResolve'
 
 const NOW = new Date('2026-03-21T10:00:00.000Z').getTime()
 const DISCONNECTED_61S_AGO = new Date(NOW - 61_000).toISOString()
@@ -44,7 +48,11 @@ function makeAdminMock({
   } as TargetPlayer,
   dropRows = [{ id: 'rp-2' }] as Array<{ id: string }>,
   dropError = null as unknown,
+  // game round IDs (Fix 1.1 — scope round_scores to this game's rounds)
+  gameRoundIds = [{ id: 'round-1' }] as Array<{ id: string }>,
   cumScores = [{ score: 30 }, { score: 20 }] as Array<{ score: number }>,
+  // idempotent game_results check (Fix 1.4)
+  existingGameResult = null as { id: string } | null,
   insertError = null as unknown,
 } = {}) {
   // games SELECT: .select().eq().maybeSingle()
@@ -72,9 +80,20 @@ function makeAdminMock({
   const dropEq1 = vi.fn().mockReturnValue({ eq: dropEq2 })
   const rpUpdate = vi.fn().mockReturnValue({ eq: dropEq1 })
 
-  // round_scores SELECT: .select('score').eq('player_id', id) → { data }
-  const scoresEq = vi.fn().mockResolvedValue({ data: cumScores })
-  const scoresSelect = vi.fn().mockReturnValue({ eq: scoresEq })
+  // rounds SELECT (game round IDs, Fix 1.1): .select('id').eq('game_id', gameId)
+  const roundsEq = vi.fn().mockResolvedValue({ data: gameRoundIds })
+  const roundsSelect = vi.fn().mockReturnValue({ eq: roundsEq })
+
+  // round_scores SELECT (Fix 1.1 + scoped): .select('score').in('round_id', [...]).eq('player_id', id)
+  const scoresEqPlayerId = vi.fn().mockResolvedValue({ data: cumScores })
+  const scoresIn = vi.fn().mockReturnValue({ eq: scoresEqPlayerId })
+  const scoresSelect = vi.fn().mockReturnValue({ in: scoresIn })
+
+  // game_results SELECT (idempotency check, Fix 1.4): .select('id').eq('game_id').eq('player_id').maybeSingle()
+  const grCheckMaybeSingle = vi.fn().mockResolvedValue({ data: existingGameResult })
+  const grCheckEq2 = vi.fn().mockReturnValue({ maybeSingle: grCheckMaybeSingle })
+  const grCheckEq1 = vi.fn().mockReturnValue({ eq: grCheckEq2 })
+  const grCheckSelect = vi.fn().mockReturnValue({ eq: grCheckEq1 })
 
   // game_results INSERT: .insert({...}) → { error }
   const resultsInsert = vi.fn().mockResolvedValue({ error: insertError })
@@ -88,18 +107,21 @@ function makeAdminMock({
       if (idx === 1) return { select: targetSelect }
       return { update: rpUpdate }
     }
+    if (table === 'rounds') return { select: roundsSelect }
     if (table === 'round_scores') return { select: scoresSelect }
-    if (table === 'game_results') return { insert: resultsInsert }
+    if (table === 'game_results') return { select: grCheckSelect, insert: resultsInsert }
     throw new Error(`Unexpected table: ${table}`)
   })
 
-  return { from: fromMock, rpUpdate, resultsInsert }
+  return { from: fromMock, rpUpdate, resultsInsert, grCheckSelect }
 }
 
 beforeEach(() => {
   vi.resetAllMocks()
   vi.useFakeTimers()
   vi.setSystemTime(NOW)
+  // Reset resolveDroppedTurnChain mock
+  ;(resolveDroppedTurnChain as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -121,6 +143,16 @@ describe('POST /api/games/[gameId]/drop-player', () => {
     ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(makeAdminMock())
     const res = await POST(makeRequest('game-id', {}), makeParams())
     expect(res.status).toBe(400)
+  })
+
+  it('returns 400 when caller tries to drop themselves (Fix 1.2 — self-drop guard)', async () => {
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock({ id: 'player-1' }))
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(makeAdminMock())
+    // player-1 trying to drop player-1 (same as user.id)
+    const res = await POST(makeRequest('game-id', { disconnectedUserId: 'player-1' }), makeParams())
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toMatch(/cannot drop yourself/i)
   })
 
   it('returns 404 when game is not found or not in progress', async () => {
@@ -237,5 +269,68 @@ describe('POST /api/games/[gameId]/drop-player', () => {
     expect(res.status).toBe(200)
     const insertArg = (admin.resultsInsert as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>
     expect(insertArg.total_score).toBe(0)
+  })
+
+  it('scopes round_scores query to this game only (Fix 1.1 — cross-game contamination)', async () => {
+    // Verify that the rounds SELECT is called first to get game round IDs,
+    // and round_scores uses .in('round_id', ...) scoped to this game.
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
+    const admin = makeAdminMock({ gameRoundIds: [{ id: 'round-1' }, { id: 'round-2' }] })
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(admin)
+
+    const res = await POST(makeRequest(), makeParams())
+    expect(res.status).toBe(200)
+
+    // rounds SELECT must have been called (to get game round IDs)
+    const allCalls = (admin.from as ReturnType<typeof vi.fn>).mock.calls as string[][]
+    const roundsFromCall = allCalls.find((args) => args[0] === 'rounds')
+    expect(roundsFromCall).toBeDefined()
+
+    // round_scores SELECT must use .in() (scoped to game round IDs)
+    const scoresFromCall = allCalls.find((args) => args[0] === 'round_scores')
+    expect(scoresFromCall).toBeDefined()
+  })
+
+  it('skips game_results insert when row already exists (Fix 1.4 — idempotent)', async () => {
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
+    const admin = makeAdminMock({ existingGameResult: { id: 'existing-result' } })
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(admin)
+
+    const res = await POST(makeRequest(), makeParams())
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).toBe('dropped')
+
+    // game_results INSERT must NOT have been called since row exists
+    expect(admin.resultsInsert).not.toHaveBeenCalled()
+  })
+
+  it('calls resolveDroppedTurnChain after successful drop (Fix 1.3)', async () => {
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(makeAdminMock())
+
+    const res = await POST(makeRequest(), makeParams())
+    expect(res.status).toBe(200)
+
+    expect(resolveDroppedTurnChain).toHaveBeenCalledWith(
+      expect.anything(), // admin client
+      'game-id',
+      'room-id',
+    )
+  })
+
+  it('does not call resolveDroppedTurnChain when drop is a no-op (already_dropped)', async () => {
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(
+      makeAdminMock({ dropRows: [] }) // concurrent call — UPDATE matched 0 rows
+    )
+
+    const res = await POST(makeRequest(), makeParams())
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).toBe('already_dropped')
+
+    // No resolveDroppedTurnChain since drop was a no-op
+    expect(resolveDroppedTurnChain).not.toHaveBeenCalled()
   })
 })

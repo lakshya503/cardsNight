@@ -120,10 +120,10 @@ function makeAdminMock({
   const cpEq1 = vi.fn().mockReturnValue({ eq: cpEq2 })
   const cpSelect = vi.fn().mockReturnValue({ eq: cpEq1 })
 
-  // room_players seat list: .select().eq().eq().order()
+  // room_players seat list: .select('user_id, seat_order, status').eq('room_id').in('user_id').order()
   const rpListOrder = vi.fn().mockResolvedValue({ data: players })
-  const rpListEq2 = vi.fn().mockReturnValue({ order: rpListOrder })
-  const rpListEq1 = vi.fn().mockReturnValue({ eq: rpListEq2 })
+  const rpListIn = vi.fn().mockReturnValue({ order: rpListOrder })
+  const rpListEq1 = vi.fn().mockReturnValue({ in: rpListIn })
   const rpListSelect = vi.fn().mockReturnValue({ eq: rpListEq1 })
 
   // rounds SELECT: .select().eq('game_id').in('status').order().limit().maybeSingle()
@@ -185,11 +185,15 @@ function makeAdminMock({
   const tricksUpdate = vi.fn().mockReturnValue({ eq: tricksUpdateEq })
   const tricksInsert = vi.fn().mockResolvedValue({ error: null })
 
-  // hands SELECT: .select().eq().eq().maybeSingle()
+  // hands SELECT player_id list (new — autoResolveBid/autoResolvePlay query): .select('player_id').eq('round_id')
+  const handsPlayerIdEq = vi.fn().mockResolvedValue({ data: players.map((p) => ({ player_id: p.user_id })) })
+  const handsPlayerIdSelect = vi.fn().mockReturnValue({ eq: handsPlayerIdEq })
+
+  // hands SELECT cards: .select('cards').eq('round_id').eq('player_id').maybeSingle()
   const handsMaybeSingle = vi.fn().mockResolvedValue({ data: handRow })
   const handsEq2 = vi.fn().mockReturnValue({ maybeSingle: handsMaybeSingle })
   const handsEq1 = vi.fn().mockReturnValue({ eq: handsEq2 })
-  const handsSelect = vi.fn().mockReturnValue({ eq: handsEq1 })
+  const handsCardsSelect = vi.fn().mockReturnValue({ eq: handsEq1 })
   const handsInsert = vi.fn().mockResolvedValue({ error: null })
 
   // trick_cards SELECT played-by-player: .select().eq('player_id').in('trick_id')
@@ -220,6 +224,7 @@ function makeAdminMock({
   let roundsCallCount = 0
   let tricksCallCount = 0
   let tcSelectCallCount = 0
+  let handsCallCount = 0
 
   const fromMock = vi.fn().mockImplementation((table: string) => {
     if (table === 'games') return { select: gameSelect, update: gamesUpdate }
@@ -228,7 +233,7 @@ function makeAdminMock({
       const idx = rpCallCount++
       if (idx === 0) return { select: rpMemberSelect }
       if (idx === 1) return { select: cpSelect }   // current player status check
-      return { select: rpListSelect }
+      return { select: rpListSelect }               // seat list for autoResolveBid/autoResolvePlay
     }
     if (table === 'rounds') {
       const idx = roundsCallCount++
@@ -248,7 +253,15 @@ function makeAdminMock({
       if (idx === 1) return { select: lastTrickSelect, update: tricksUpdate, insert: tricksInsert }
       return { select: tricksCompletedSelect, update: tricksUpdate, insert: tricksInsert }
     }
-    if (table === 'hands') return { select: handsSelect, insert: handsInsert }
+    if (table === 'hands') {
+      const idx = handsCallCount++
+      // Call 0: player_id list for autoResolveBid/autoResolvePlay
+      if (idx === 0) return { select: handsPlayerIdSelect, insert: handsInsert }
+      // Call 1: cards lookup for autoResolvePlay
+      if (idx === 1) return { select: handsCardsSelect, insert: handsInsert }
+      // Call 2+: next round insert
+      return { insert: handsInsert }
+    }
     if (table === 'trick_cards') {
       const idx = tcSelectCallCount++
       if (idx === 0) return { select: tcPlayedSelect }

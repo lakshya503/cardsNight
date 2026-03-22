@@ -52,12 +52,12 @@ export default async function GamePage({ params }: PageProps) {
     .limit(1)
     .maybeSingle()
 
-  // Fetch players in seat order with display names
+  // Fetch players in seat order with display names (active + disconnected)
   const { data: players } = await admin
     .from('room_players')
     .select('user_id, seat_order, profiles(display_name, avatar_url)')
     .eq('room_id', game.room_id)
-    .eq('status', 'active')
+    .in('status', ['active', 'disconnected'])
     .order('seat_order', { ascending: true })
 
   const playerList = (players ?? []).map((p) => {
@@ -140,6 +140,14 @@ export default async function GamePage({ params }: PageProps) {
     }
   }
 
+  // Fetch dropped players for this game (needed to initialise client state)
+  const { data: droppedPlayerRows } = await admin
+    .from('room_players')
+    .select('user_id')
+    .eq('room_id', game.room_id)
+    .eq('status', 'dropped')
+  const initialDroppedPlayers = (droppedPlayerRows ?? []).map((p) => p.user_id)
+
   return (
     <GameShell
       gameId={gameId}
@@ -153,6 +161,7 @@ export default async function GamePage({ params }: PageProps) {
       initialTricksWon={initialTricksWon}
       players={playerList}
       turnTimerSeconds={room?.turn_timer_seconds ?? null}
+      initialDroppedPlayers={initialDroppedPlayers}
     />
   )
 }
