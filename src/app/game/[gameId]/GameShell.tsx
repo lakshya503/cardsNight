@@ -146,6 +146,7 @@ export function GameShell({
   const [summaryRoundScores, setSummaryRoundScores] = useState<Record<string, number>>({})
   const [showRoundSummary, setShowRoundSummary] = useState(false)
   // disconnectedPlayers: userId → disconnectedAt ISO string
+  const [leavePending, setLeavePending] = useState(false)
   const [disconnectedPlayers, setDisconnectedPlayers] = useState<Map<string, string>>(new Map())
   // droppedPlayers: userId set — players who failed to reconnect and were dropped
   const [droppedPlayers, setDroppedPlayers] = useState<Set<string>>(new Set(initialDroppedPlayers))
@@ -486,17 +487,6 @@ export function GameShell({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- gameId is a route param (stable); userId comes from server auth (stable for session lifetime); neither changes without a full navigation
   }, [gameId, userId])
 
-  // Intentional leave: fire-and-forget when the user navigates away or closes the tab.
-  // keepalive ensures the request survives page unload. The server marks the caller
-  // as 'dropped' directly (no 60s reconnection window) and records a loss result.
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      fetch(`/api/games/${gameId}/leave`, { method: 'POST', keepalive: true })
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [gameId])
-
   // Polling fallback: if Realtime missed an event, detect state drift and refresh.
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -578,9 +568,40 @@ export function GameShell({
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
         <span className="font-semibold">Round {round?.round_number ?? '—'}</span>
-        <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          {round ? `${round.hand_size} card${round.hand_size !== 1 ? 's' : ''} this round` : ''}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            {round ? `${round.hand_size} card${round.hand_size !== 1 ? 's' : ''} this round` : ''}
+          </span>
+          {leavePending ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Leave game?</span>
+              <button
+                onClick={async () => {
+                  await fetch(`/api/games/${gameId}/leave`, { method: 'POST' })
+                  router.push('/')
+                }}
+                className="text-xs px-2 py-1 rounded bg-red-600 text-white font-medium"
+              >
+                Yes, leave
+              </button>
+              <button
+                onClick={() => setLeavePending(false)}
+                className="text-xs px-2 py-1 rounded"
+                style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-muted)' }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setLeavePending(true)}
+              className="text-xs"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              Leave
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Game board — three rows: opponent / table / you */}
