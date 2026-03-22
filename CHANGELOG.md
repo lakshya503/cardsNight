@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [M3 — Intentional Leave] — 2026-03-22
+
+### Added
+- `POST /api/games/[gameId]/leave` — marks caller as `dropped`; upserts `game_results` row with `result = 'loss'`, `placement = 0`, and cumulative `total_score` scoped to this game; calls `resolveDroppedTurnChain` to advance the game if it was their turn; idempotent (conditional UPDATE returns `already_dropped` if caller already dropped)
+- `GameShell` header — explicit two-step "Leave" → confirm → "Yes, leave" button; replaces the removed `beforeunload` listener (which fired on hard reload, causing unintentional losses); `leavePending` state resets on round transitions and overlay dismissals
+- `results/page.tsx` — access control extended to `dropped` players; repair pass writes missing `game_results` rows for disconnected/dropped players when `game.status = 'finished'` (safety net for network failures); results queried after repair pass so newly-inserted rows appear
+- `ResultsPanel` — dropped players (placement 0) render `—` for placement and `Left game` for result label; sorted to appear after all finished players
+
+---
+
 ## [M3 — Dropped Player Auto-Resolution] — 2026-03-21
 
 ### Added
