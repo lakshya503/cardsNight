@@ -54,7 +54,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </h1>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
+          <Link href="/profile" className="flex items-center gap-2">
             {avatarUrl && (
               <Image
                 src={avatarUrl}
@@ -67,7 +67,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
               {displayName}
             </span>
-          </div>
+          </Link>
+
+          <Link
+            href="/profile"
+            className="text-sm px-3 py-1.5"
+            style={{
+              color: 'var(--color-text-muted)',
+              borderRadius: 'var(--radius-sm)',
+            }}
+          >
+            Profile
+          </Link>
 
           <form action={signOut}>
             <button
