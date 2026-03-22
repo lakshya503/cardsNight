@@ -50,14 +50,19 @@ export async function autoResolveBid(
     return { ok: false, error: 'No players found', httpStatus: 500 }
   }
 
+  // activePlayers: non-dropped players only — used for completion thresholds.
+  // players (allPlayers): full seat list — used for turn advancement wraparound.
+  const activePlayers = players.filter((p) => p.status !== 'dropped')
+
   const { data: existingBids } = await admin
     .from('bids')
     .select('amount')
     .eq('round_id', round.id)
 
   const existingAmounts = (existingBids ?? []).map((b) => b.amount)
-  // isLastBidder uses players.length - 1 (correct count includes dropped players)
-  const isLastBidder = existingAmounts.length === players.length - 1
+  // isLastBidder uses activePlayers.length - 1: dropped players never bid,
+  // so the threshold is the number of active players, not the full round seat count.
+  const isLastBidder = existingAmounts.length === activePlayers.length - 1
   const validBids = getValidBids(round.hand_size, existingAmounts, isLastBidder)
   const autoBid = Math.min(...validBids)
 
@@ -156,6 +161,10 @@ export async function autoResolvePlay(
     return { ok: false, error: 'No players found', httpStatus: 500 }
   }
 
+  // activePlayers: non-dropped only — used for trick/bid completion thresholds.
+  // players (allPlayers): full seat list — used for turn advancement wraparound.
+  const activePlayers = players.filter((p) => p.status !== 'dropped')
+
   // Fetch all tricks for this round
   const { data: allTricks } = await admin
     .from('tricks')
@@ -228,8 +237,11 @@ export async function autoResolvePlay(
 
   const totalPlayed = (existingTrickCards?.length ?? 0) + 1
 
-  // Trick still in progress — advance to next player (do NOT skip dropped players)
-  if (totalPlayed < players.length) {
+  // Trick still in progress — advance to next player (do NOT skip dropped players).
+  // Completion threshold uses activePlayers.length: dropped players never play a card,
+  // so the trick is complete when all *active* players have played.
+  // Turn advancement still uses players (full seat list) for correct index wraparound.
+  if (totalPlayed < activePlayers.length) {
     const currentIdx = players.findIndex((p) => p.user_id === round.current_player_id)
     const nextPlayerId = players[(currentIdx + 1) % players.length].user_id
     await admin

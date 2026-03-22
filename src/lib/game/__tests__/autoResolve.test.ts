@@ -348,6 +348,27 @@ describe('autoResolveBid', () => {
     expect(updateArg.current_player_id).toBe('player-2')
   })
 
+  it('treats last ACTIVE bidder as last bidder when a player is dropped', async () => {
+    // 3 players dealt hands; player-2 is dropped.
+    // player-1 already bid (1 existing bid). player-3 is the last ACTIVE bidder.
+    // Bug: isLastBidder = (1 === 3-1=2) → false → stays bidding (WRONG)
+    // Fix: isLastBidder = (1 === activePlayers.length-1=1) → true → playing (CORRECT)
+    const playersWithDropped = [
+      { user_id: 'player-1', seat_order: 0, status: 'active' },
+      { user_id: 'player-2', seat_order: 1, status: 'dropped' },
+      { user_id: 'player-3', seat_order: 2, status: 'active' },
+    ]
+    const admin = makeBidAdminMock({
+      handRows: [{ player_id: 'player-1' }, { player_id: 'player-2' }, { player_id: 'player-3' }],
+      players: playersWithDropped,
+      existingBids: [{ amount: 1 }], // 1 bid placed (player-1)
+    })
+    const round = { ...DEFAULT_ROUND, current_player_id: 'player-3', round_number: 1 }
+    const result = await autoResolveBid(admin as unknown as ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>, 'game-1', 'room-1', round)
+
+    expect(result).toEqual({ ok: true, status: 'playing' })
+  })
+
   it('uses non-dropped players as eligible leaders when transitioning to playing', async () => {
     const playersWithDropped = [
       { user_id: 'player-1', seat_order: 0, status: 'active' },
@@ -357,7 +378,7 @@ describe('autoResolveBid', () => {
     const admin = makeBidAdminMock({
       handRows: [{ player_id: 'player-1' }, { player_id: 'player-2' }, { player_id: 'player-3' }],
       players: playersWithDropped,
-      existingBids: [{ amount: 0 }, { amount: 0 }], // 2 existing → player-3 is last of 3
+      existingBids: [{ amount: 0 }], // 1 existing bid (from player-1) → player-3 is last of 2 ACTIVE players
     })
     const round = { ...DEFAULT_ROUND, current_player_id: 'player-3', round_number: 1 }
     const result = await autoResolveBid(admin as unknown as ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>, 'game-1', 'room-1', round)
@@ -509,6 +530,46 @@ describe('autoResolvePlay', () => {
     // player-2 is dropped — must not appear in game_results from autoResolvePlay
     expect(insertedPlayerIds).not.toContain('player-2')
     expect(insertedPlayerIds).toContain('player-1')
+  })
+
+  it('completes trick when all active players played (dropped player excluded from count)', async () => {
+    // 4 players: p1, p3, p4 active; p2 dropped.
+    // p1 and p3 already played (2 cards in trick). p4 is current → plays now.
+    // totalPlayed = 3.
+    // Bug: 3 < players.length(4) → trick_in_progress (trick never closes)
+    // Fix: 3 < activePlayers.length(3) → false → trick completes
+    const playersWithDropped = [
+      { user_id: 'player-1', seat_order: 0, status: 'active' },
+      { user_id: 'player-2', seat_order: 1, status: 'dropped' },
+      { user_id: 'player-3', seat_order: 2, status: 'active' },
+      { user_id: 'player-4', seat_order: 3, status: 'active' },
+    ]
+    const admin = makePlayAdminMock({
+      handRows: [
+        { player_id: 'player-1' }, { player_id: 'player-2' },
+        { player_id: 'player-3' }, { player_id: 'player-4' },
+      ],
+      players: playersWithDropped,
+      allTricks: [{ id: 'trick-1', trick_number: 1, led_suit: 'hearts', winner_id: null }],
+      handRowCards: [{ suit: 'hearts', value: '2' }],
+      playedByPlayer: [],
+      existingTrickCards: [
+        { player_id: 'player-1', suit: 'hearts', value: 'K' },
+        { player_id: 'player-3', suit: 'hearts', value: 'Q' },
+      ],
+      roundBids: [
+        { player_id: 'player-1', amount: 0 },
+        { player_id: 'player-3', amount: 0 },
+        { player_id: 'player-4', amount: 0 },
+      ],
+      completedTricks: [],
+    })
+    const round = { ...PLAYING_ROUND, hand_size: 1, current_player_id: 'player-4', round_number: 1 }
+
+    const result = await autoResolvePlay(admin as unknown as ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>, 'game-1', 'room-1', round)
+
+    expect(result.ok).toBe(true)
+    expect((result as { ok: true; status: string }).status).not.toBe('trick_in_progress')
   })
 
   it('only inserts round_scores for non-dropped players', async () => {
