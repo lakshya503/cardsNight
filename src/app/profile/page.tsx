@@ -4,6 +4,32 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 
+// Supabase may type an embedded FK relation as an array or a scalar depending on the
+// schema introspection. This helper normalises both cases to a single object or null.
+export function extractGame(raw: unknown): { finished_at?: string | null; rooms?: { game_type?: string } | null } | null {
+  if (!raw) return null
+  const scalar = Array.isArray(raw) ? raw[0] : raw
+  return scalar ?? null
+}
+
+type HistoryRow = { result: string; games: unknown }
+
+export function computeStats(rows: HistoryRow[]) {
+  const totalGames = rows.length
+  const wins = rows.filter((r) => r.result === 'win').length
+  const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : null
+
+  // Find the max finished_at across all rows — rows is sorted by created_at, which
+  // may differ from finished_at in edge cases (e.g. repair-pass insertions).
+  let latestFinishedAt: string | null = null
+  for (const r of rows) {
+    const fa = extractGame(r.games)?.finished_at
+    if (fa && (!latestFinishedAt || fa > latestFinishedAt)) latestFinishedAt = fa
+  }
+
+  return { totalGames, wins, winRate, latestFinishedAt }
+}
+
 export default async function ProfilePage() {
   const supabase = await createClient()
   const admin = createAdminClient()
@@ -27,22 +53,8 @@ export default async function ProfilePage() {
     .order('created_at', { ascending: false })
 
   const rows = history ?? []
-  const totalGames = rows.length
-  const wins = rows.filter((r) => r.result === 'win').length
-  const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : null
+  const { totalGames, wins, winRate, latestFinishedAt } = computeStats(rows)
 
-  // Supabase may type the embedded relation as an array — normalise to scalar
-  function extractGame(raw: unknown): { finished_at?: string | null; rooms?: { game_type?: string } | null } | null {
-    if (!raw) return null
-    return (Array.isArray(raw) ? raw[0] : raw) as { finished_at?: string | null; rooms?: { game_type?: string } | null } | null
-  }
-
-  // Find the most recent finished_at across all rows (not just rows[0], which sorts by created_at)
-  let latestFinishedAt: string | null = null
-  for (const r of rows) {
-    const fa = extractGame(r.games)?.finished_at
-    if (fa && (!latestFinishedAt || fa > latestFinishedAt)) latestFinishedAt = fa
-  }
   const lastPlayed = latestFinishedAt
     ? new Date(latestFinishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : 'Never'
@@ -130,6 +142,7 @@ export default async function ProfilePage() {
                 const date = game?.finished_at
                   ? new Date(game.finished_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                   : '—'
+                // placement === 0 is the sentinel for a mid-game drop (not a final standing)
                 const isLeft = r.placement === 0
                 const isWin = r.result === 'win'
 
