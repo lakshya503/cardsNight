@@ -579,9 +579,11 @@ export function GameShell({
               <button
                 onClick={async () => {
                   try {
-                    await fetch(`/api/games/${gameId}/leave`, { method: 'POST' })
-                  } catch {
+                    const res = await fetch(`/api/games/${gameId}/leave`, { method: 'POST' })
+                    if (!res.ok) console.error('[leave] server returned', res.status)
+                  } catch (err) {
                     // best-effort — redirect regardless so the player can leave
+                    console.error('[leave] fetch failed:', err)
                   }
                   router.push('/')
                 }}

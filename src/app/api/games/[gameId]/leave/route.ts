@@ -69,27 +69,17 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
 
   const totalScore = (scores ?? []).reduce((sum, r) => sum + r.score, 0)
 
-  // Idempotent game_results insert
-  const { data: existingResult } = await admin
-    .from('game_results')
-    .select('id')
-    .eq('game_id', gameId)
-    .eq('player_id', user.id)
-    .maybeSingle()
+  // Upsert — if a peer-drop already wrote a row with a stale score, update it with the
+  // more accurate score computed here. Double-tap idempotency is handled upstream by the
+  // conditional UPDATE (already_dropped branch returns early before reaching this point).
+  const { error: upsertError } = await admin.from('game_results').upsert(
+    { game_id: gameId, player_id: user.id, placement: 0, result: 'loss', total_score: totalScore },
+    { onConflict: 'game_id,player_id' }
+  )
 
-  if (!existingResult) {
-    const { error: insertError } = await admin.from('game_results').insert({
-      game_id: gameId,
-      player_id: user.id,
-      placement: 0,
-      result: 'loss',
-      total_score: totalScore,
-    })
-
-    if (insertError) {
-      console.error('[leave] game_results insert error:', insertError)
-      return NextResponse.json({ error: 'Failed to record game result' }, { status: 500 })
-    }
+  if (upsertError) {
+    console.error('[leave] game_results upsert error:', upsertError)
+    return NextResponse.json({ error: 'Failed to record game result' }, { status: 500 })
   }
 
   // If it was this player's turn, advance the game for remaining players

@@ -134,6 +134,15 @@ describe('POST /api/games/[gameId]/leave', () => {
     expect(body.status).toBe('already_dropped')
   })
 
+  it('returns 500 when the conditional UPDATE fails', async () => {
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(
+      makeAdminMock({ dropError: { message: 'db error' } })
+    )
+    const res = await POST(makeRequest(), makeParams())
+    expect(res.status).toBe(500)
+  })
+
   it('does not call resolveDroppedTurnChain when drop is a no-op', async () => {
     ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
     ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(
@@ -161,6 +170,7 @@ describe('POST /api/games/[gameId]/leave', () => {
     // game_results must record a loss with cumulative total_score
     const upsertArg = (admin.resultsUpsert as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>
     expect(upsertArg.result).toBe('loss')
+    expect(upsertArg.placement).toBe(0)
     expect(upsertArg.total_score).toBe(50)  // 30 + 20
     expect(upsertArg.player_id).toBe('player-1')
     expect(upsertArg.game_id).toBe('game-id')
