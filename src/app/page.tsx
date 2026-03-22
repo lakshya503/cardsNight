@@ -69,17 +69,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </span>
           </Link>
 
-          <Link
-            href="/profile"
-            className="text-sm px-3 py-1.5"
-            style={{
-              color: 'var(--color-text-muted)',
-              borderRadius: 'var(--radius-sm)',
-            }}
-          >
-            Profile
-          </Link>
-
           <form action={signOut}>
             <button
               type="submit"
