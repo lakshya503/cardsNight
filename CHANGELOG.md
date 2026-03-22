@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [M3 — Profile / Game History] — 2026-03-22
+
+### Added
+- `/profile` page — stats strip (games played, wins, win rate, last played) and reverse-chronological game history list; placement 0 rows show "Left" badge with no placement number; empty state with link to home
+- Home header — avatar + display name wrapped as a link to `/profile`; explicit "Profile" text link added alongside the sign out button
+- `extractGame` + `computeStats` pure helpers (module-scoped, exported) with full unit test coverage: 16 tests covering null/undefined/scalar/array inputs, win rate edge cases, lastPlayed max logic, and array-typed Supabase relation normalisation
+
+---
+
 ## [M3 — Intentional Leave] — 2026-03-22
 
 ### Added
