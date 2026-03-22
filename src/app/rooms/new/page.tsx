@@ -112,7 +112,7 @@ export default function CreateRoomPage() {
               max={MAX_PLAYERS}
               value={maxPlayers}
               onChange={(e) => setMaxPlayers(parseInt(e.target.value, 10))}
-              className="w-full accent-indigo-500"
+              className="w-full accent-[var(--color-primary)]"
             />
             <div
               className="flex justify-between text-xs"

@@ -587,7 +587,8 @@ export function GameShell({
                   }
                   router.push('/')
                 }}
-                className="text-xs px-3 py-2 rounded bg-red-600 text-white font-medium"
+                className="text-xs px-3 py-2 rounded font-medium"
+                style={{ backgroundColor: 'var(--color-error)', color: 'var(--color-text)' }}
               >
                 Yes, leave
               </button>
@@ -602,7 +603,7 @@ export function GameShell({
           ) : (
             <button
               onClick={() => setLeavePending(true)}
-              className="text-xs"
+              className="text-xs px-2 py-2"
               style={{ color: 'var(--color-text-muted)' }}
             >
               Leave
@@ -626,7 +627,7 @@ export function GameShell({
                 {p.avatarUrl ? (
                   <img src={p.avatarUrl} alt={p.displayName} className="w-12 h-12 rounded-full object-cover" />
                 ) : (
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold" style={{ backgroundColor: '#2A2A42' }}>
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold" style={{ backgroundColor: 'var(--color-surface-raised)' }}>
                     {p.displayName[0].toUpperCase()}
                   </div>
                 )}
@@ -666,7 +667,7 @@ export function GameShell({
               style={{
                 color: 'var(--color-primary)',
                 border: '1px solid var(--color-primary)',
-                backgroundColor: 'rgba(245, 184, 0, 0.08)',
+                backgroundColor: 'var(--color-primary-light)',
               }}
             >
               {statusMessage}
@@ -802,7 +803,8 @@ export function GameShell({
                       key={`${card.suit}:${card.value}`}
                       layout
                       transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
-                      className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-2 ring-amber-400 shadow-[0_0_16px_4px_rgba(251,191,36,0.55)]' : ' shadow-md'}`}
+                      className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-2 ring-amber-400' : ' shadow-md'}`}
+                      style={round?.trump_suit === card.suit ? { boxShadow: 'var(--shadow-trump-glow)' } : undefined}
                     >
                       <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
                       <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
@@ -881,7 +883,7 @@ export function GameShell({
                         {p.avatarUrl ? (
                           <img src={p.avatarUrl} alt={p.displayName} className="w-8 h-8 rounded-full object-cover shrink-0" />
                         ) : (
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ backgroundColor: '#2A2A42' }}>
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ backgroundColor: 'var(--color-surface-raised)' }}>
                             {p.displayName[0].toUpperCase()}
                           </div>
                         )}
