@@ -4,12 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 
-interface PageProps {
-  params: Promise<Record<string, never>>
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default async function ProfilePage(_props: PageProps) {
+export default async function ProfilePage() {
   const supabase = await createClient()
   const admin = createAdminClient()
 
@@ -27,7 +22,7 @@ export default async function ProfilePage(_props: PageProps) {
 
   const { data: history } = await admin
     .from('game_results')
-    .select('placement, result, total_score, created_at, games(finished_at, rooms(game_type))')
+    .select('id, placement, result, total_score, created_at, games(finished_at, rooms(game_type))')
     .eq('player_id', user.id)
     .order('created_at', { ascending: false })
 
@@ -36,9 +31,20 @@ export default async function ProfilePage(_props: PageProps) {
   const wins = rows.filter((r) => r.result === 'win').length
   const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : null
 
-  const lastPlayedRaw = (rows[0]?.games as { finished_at?: string | null } | null)?.finished_at
-  const lastPlayed = lastPlayedRaw
-    ? new Date(lastPlayedRaw).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  // Supabase may type the embedded relation as an array — normalise to scalar
+  function extractGame(raw: unknown): { finished_at?: string | null; rooms?: { game_type?: string } | null } | null {
+    if (!raw) return null
+    return (Array.isArray(raw) ? raw[0] : raw) as { finished_at?: string | null; rooms?: { game_type?: string } | null } | null
+  }
+
+  // Find the most recent finished_at across all rows (not just rows[0], which sorts by created_at)
+  let latestFinishedAt: string | null = null
+  for (const r of rows) {
+    const fa = extractGame(r.games)?.finished_at
+    if (fa && (!latestFinishedAt || fa > latestFinishedAt)) latestFinishedAt = fa
+  }
+  const lastPlayed = latestFinishedAt
+    ? new Date(latestFinishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : 'Never'
 
   return (
@@ -117,7 +123,7 @@ export default async function ProfilePage(_props: PageProps) {
           ) : (
             <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--color-surface)' }}>
               {rows.map((r, i) => {
-                const game = r.games as { finished_at?: string | null; rooms?: { game_type?: string } | null } | null
+                const game = extractGame(r.games)
                 const gameType = game?.rooms?.game_type
                   ? game.rooms.game_type.charAt(0).toUpperCase() + game.rooms.game_type.slice(1)
                   : 'Judgement'
@@ -129,7 +135,7 @@ export default async function ProfilePage(_props: PageProps) {
 
                 return (
                   <div
-                    key={i}
+                    key={r.id}
                     className="flex items-center justify-between px-4 py-3"
                     style={{
                       borderBottom: i < rows.length - 1 ? '1px solid var(--color-border)' : undefined,
@@ -156,8 +162,8 @@ export default async function ProfilePage(_props: PageProps) {
                         className="text-xs font-semibold px-2 py-0.5 rounded-full"
                         style={
                           isWin
-                            ? { backgroundColor: 'rgba(52,211,153,0.15)', color: 'var(--color-success, #34d399)' }
-                            : { backgroundColor: 'var(--color-surface-raised, rgba(255,255,255,0.06))', color: 'var(--color-text-muted)' }
+                            ? { backgroundColor: 'var(--color-success-light)', color: 'var(--color-success)' }
+                            : { backgroundColor: 'var(--color-surface-raised)', color: 'var(--color-text-muted)' }
                         }
                       >
                         {isWin ? 'Win' : isLeft ? 'Left' : 'Loss'}
