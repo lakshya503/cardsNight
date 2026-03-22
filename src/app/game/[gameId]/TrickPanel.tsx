@@ -34,10 +34,10 @@ const SUIT_SYMBOL: Record<string, string> = {
 }
 
 const SUIT_COLOR: Record<string, string> = {
-  hearts: 'text-red-500',
-  diamonds: 'text-red-500',
-  clubs: 'text-slate-900',
-  spades: 'text-slate-900',
+  hearts: 'text-[var(--color-suit-warm)]',
+  diamonds: 'text-[var(--color-suit-warm)]',
+  clubs: 'text-[var(--color-suit-dark)]',
+  spades: 'text-[var(--color-suit-dark)]',
 }
 
 export function TrickPanel({ gameId, hand, trickCards, isMyTurn, onCardPlayed, ledSuit, trumpSuit, handOnly = false }: Props) {
@@ -117,12 +117,13 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, onCardPlayed, l
                   transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
                   className={[
                     'relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none transition-opacity',
-                    isTrump ? 'ring-2 ring-amber-400 shadow-[0_0_16px_4px_rgba(251,191,36,0.55)]' : 'shadow-md',
+                    isTrump ? 'ring-2 ring-amber-400' : 'shadow-md',
                     isValid
-                      ? 'hover:ring-2 hover:ring-[#F5B800]'
+                      ? 'hover:ring-2 hover:ring-[var(--color-primary)]'
                       : 'opacity-40 cursor-not-allowed',
                     submitting ? 'opacity-50' : '',
                   ].join(' ')}
+                  style={isTrump ? { boxShadow: 'var(--shadow-trump-glow)' } : undefined}
                 >
                   <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
                   <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
@@ -146,7 +147,8 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, onCardPlayed, l
                 layout
                 layoutId={`card-${card.suit}-${card.value}`}
                 transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
-                className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${card.suit === trumpSuit ? ' ring-2 ring-amber-400 shadow-[0_0_16px_4px_rgba(251,191,36,0.55)]' : ' shadow-md'}`}
+                className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${card.suit === trumpSuit ? ' ring-2 ring-amber-400' : ' shadow-md'}`}
+                style={card.suit === trumpSuit ? { boxShadow: 'var(--shadow-trump-glow)' } : undefined}
               >
                 <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
                 <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>

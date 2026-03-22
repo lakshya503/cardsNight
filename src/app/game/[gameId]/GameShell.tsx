@@ -53,8 +53,8 @@ const SUIT_SYMBOL: Record<string, string> = {
   hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠',
 }
 const SUIT_COLOR: Record<string, string> = {
-  hearts: 'text-red-500', diamonds: 'text-red-500',
-  clubs: 'text-slate-900', spades: 'text-slate-900',
+  hearts: 'text-[var(--color-suit-warm)]', diamonds: 'text-[var(--color-suit-warm)]',
+  clubs: 'text-[var(--color-suit-dark)]', spades: 'text-[var(--color-suit-dark)]',
 }
 
 interface Player {
@@ -588,7 +588,7 @@ export function GameShell({
                   router.push('/')
                 }}
                 className="text-xs px-3 py-2 rounded font-medium"
-                style={{ backgroundColor: 'var(--color-error)', color: 'var(--color-text)' }}
+                style={{ backgroundColor: 'var(--color-error)', color: 'var(--color-text-on-accent)' }}
               >
                 Yes, leave
               </button>
