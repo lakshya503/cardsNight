@@ -587,13 +587,13 @@ export function GameShell({
                   }
                   router.push('/')
                 }}
-                className="text-xs px-2 py-1 rounded bg-red-600 text-white font-medium"
+                className="text-xs px-3 py-2 rounded bg-red-600 text-white font-medium"
               >
                 Yes, leave
               </button>
               <button
                 onClick={() => setLeavePending(false)}
-                className="text-xs px-2 py-1 rounded"
+                className="text-xs px-3 py-2 rounded"
                 style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-muted)' }}
               >
                 Cancel

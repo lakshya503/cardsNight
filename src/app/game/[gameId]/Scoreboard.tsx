@@ -19,7 +19,7 @@ export function Scoreboard({ scores, currentRoundNumber }: Props) {
       <h2 className="text-sm font-semibold mb-3 uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>
         Scores · Round {currentRoundNumber}
       </h2>
-      <div className="space-y-2 max-h-48 overflow-y-auto">
+      <div className="space-y-2 max-h-64 overflow-y-auto">
         {sorted.map((s, i) => (
           <div key={s.userId} className="flex items-center justify-between">
             <div className="flex items-center gap-2">

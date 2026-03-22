@@ -65,7 +65,7 @@ export default function CreateRoomPage() {
       style={{ backgroundColor: 'var(--color-background)' }}
     >
       <div
-        className="w-full max-w-md flex flex-col gap-8 p-10"
+        className="w-full max-w-md flex flex-col gap-8 p-6 sm:p-10"
         style={{
           backgroundColor: 'var(--color-surface)',
           borderRadius: 'var(--radius-xl)',

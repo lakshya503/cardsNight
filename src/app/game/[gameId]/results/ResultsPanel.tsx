@@ -89,7 +89,7 @@ export function ResultsPanel({ results, currentUserId, isWinner }: Props) {
         <Link
           href="/"
           className="px-6 py-3 rounded-lg font-semibold transition-colors"
-          style={{ backgroundColor: '#F5B800', color: '#13131F' }}
+          style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-text-on-primary)' }}
         >
           Back to home
         </Link>

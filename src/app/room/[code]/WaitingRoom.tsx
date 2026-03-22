@@ -187,7 +187,7 @@ export default function WaitingRoom({ room, initialPlayers, currentUserId }: Wai
             {copy.waitingRoom.roomCodeLabel}
           </p>
           <p
-            className="text-5xl font-bold tracking-widest"
+            className="text-3xl sm:text-5xl font-bold tracking-widest"
             style={{ fontFamily: 'monospace', color: 'var(--color-primary)' }}
           >
             {room.code}

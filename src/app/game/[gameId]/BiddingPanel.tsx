@@ -74,7 +74,7 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
               className={['w-12 h-12 rounded-lg font-bold text-lg transition-colors', submitting ? 'opacity-50' : ''].join(' ')}
               style={
                 isValid
-                  ? { backgroundColor: '#F5B800', color: '#13131F' }
+                  ? { backgroundColor: 'var(--color-primary)', color: 'var(--color-text-on-primary)' }
                   : { backgroundColor: 'var(--color-surface-raised)', color: 'var(--color-text-muted)', cursor: 'not-allowed' }
               }
             >
