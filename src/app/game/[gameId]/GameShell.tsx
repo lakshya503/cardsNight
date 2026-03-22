@@ -486,6 +486,17 @@ export function GameShell({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- gameId is a route param (stable); userId comes from server auth (stable for session lifetime); neither changes without a full navigation
   }, [gameId, userId])
 
+  // Intentional leave: fire-and-forget when the user navigates away or closes the tab.
+  // keepalive ensures the request survives page unload. The server marks the caller
+  // as 'dropped' directly (no 60s reconnection window) and records a loss result.
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      fetch(`/api/games/${gameId}/leave`, { method: 'POST', keepalive: true })
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [gameId])
+
   // Polling fallback: if Realtime missed an event, detect state drift and refresh.
   useEffect(() => {
     const interval = setInterval(async () => {

@@ -23,12 +23,14 @@ export default async function ResultsPage({ params }: PageProps) {
 
   if (!game) redirect('/')
 
+  // Allow active, disconnected, and dropped players to view results.
+  // Dropped players (intentional leave or timeout) should still see the outcome.
   const { data: roomPlayer } = await admin
     .from('room_players')
     .select('id')
     .eq('room_id', game.room_id)
     .eq('user_id', user.id)
-    .eq('status', 'active')
+    .in('status', ['active', 'disconnected', 'dropped'])
     .maybeSingle()
 
   if (!roomPlayer) redirect('/')
@@ -38,6 +40,40 @@ export default async function ResultsPage({ params }: PageProps) {
     .select('player_id, placement, result, total_score, profiles(display_name)')
     .eq('game_id', gameId)
     .order('placement', { ascending: true })
+
+  // Repair pass: if the game is finished, ensure every non-active player has a
+  // game_results row. This is a safety net for cases where the beforeunload fetch
+  // didn't fire (e.g. browser killed, network failure).
+  if (game.status === 'finished') {
+    const { data: allRoomPlayers } = await admin
+      .from('room_players')
+      .select('user_id')
+      .eq('room_id', game.room_id)
+      .in('status', ['active', 'disconnected', 'dropped'])
+
+    const existingResultIds = new Set((results ?? []).map((r) => r.player_id))
+    const missing = (allRoomPlayers ?? []).filter((p) => !existingResultIds.has(p.user_id))
+
+    if (missing.length > 0) {
+      const { data: gameRounds } = await admin.from('rounds').select('id').eq('game_id', gameId)
+      const gameRoundIds = (gameRounds ?? []).map((r) => r.id)
+
+      for (const p of missing) {
+        const { data: playerScores } = gameRoundIds.length > 0
+          ? await admin.from('round_scores').select('score').in('round_id', gameRoundIds).eq('player_id', p.user_id)
+          : { data: [] }
+        const totalScore = (playerScores ?? []).reduce((sum, r) => sum + r.score, 0)
+
+        await admin.from('game_results').insert({
+          game_id: gameId,
+          player_id: p.user_id,
+          placement: 0,
+          result: 'loss',
+          total_score: totalScore,
+        })
+      }
+    }
+  }
 
   const myResult = results?.find((r) => r.player_id === user.id)
   const isWinner = myResult?.result === 'win'
