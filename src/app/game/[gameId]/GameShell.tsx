@@ -146,6 +146,7 @@ export function GameShell({
   const [summaryRoundScores, setSummaryRoundScores] = useState<Record<string, number>>({})
   const [showRoundSummary, setShowRoundSummary] = useState(false)
   // disconnectedPlayers: userId → disconnectedAt ISO string
+  const [leavePending, setLeavePending] = useState(false)
   const [disconnectedPlayers, setDisconnectedPlayers] = useState<Map<string, string>>(new Map())
   // droppedPlayers: userId set — players who failed to reconnect and were dropped
   const [droppedPlayers, setDroppedPlayers] = useState<Set<string>>(new Set(initialDroppedPlayers))
@@ -179,6 +180,7 @@ export function GameShell({
     setTrickCards(initialTrickCards)
     setTricksWon(initialTricksWon)
     setTrickAnimation(null)
+    setLeavePending(false)
     roundRef.current = initialRound
     currentTrickRef.current = initialCurrentTrick
   }, [initialRound?.id, initialRound?.current_player_id, initialRound?.status])
@@ -567,9 +569,46 @@ export function GameShell({
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
         <span className="font-semibold">Round {round?.round_number ?? '—'}</span>
-        <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          {round ? `${round.hand_size} card${round.hand_size !== 1 ? 's' : ''} this round` : ''}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            {round ? `${round.hand_size} card${round.hand_size !== 1 ? 's' : ''} this round` : ''}
+          </span>
+          {leavePending ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Leave game?</span>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/games/${gameId}/leave`, { method: 'POST' })
+                    if (!res.ok) console.error('[leave] server returned', res.status)
+                  } catch (err) {
+                    // best-effort — redirect regardless so the player can leave
+                    console.error('[leave] fetch failed:', err)
+                  }
+                  router.push('/')
+                }}
+                className="text-xs px-2 py-1 rounded bg-red-600 text-white font-medium"
+              >
+                Yes, leave
+              </button>
+              <button
+                onClick={() => setLeavePending(false)}
+                className="text-xs px-2 py-1 rounded"
+                style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-muted)' }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setLeavePending(true)}
+              className="text-xs"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              Leave
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Game board — three rows: opponent / table / you */}
@@ -815,7 +854,7 @@ export function GameShell({
       {showRoundSummary && summaryRoundNumber !== null && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-300"
-          onClick={() => setShowRoundSummary(false)}
+          onClick={() => { setShowRoundSummary(false); setLeavePending(false) }}
         >
           <div
             className="rounded-2xl shadow-2xl p-6 mx-4 w-full max-w-sm max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-8 duration-300"
@@ -869,7 +908,7 @@ export function GameShell({
 
             <div className="mt-5 pt-4 border-t text-center" style={{ borderColor: 'var(--color-border)' }}>
               <button
-                onClick={() => setShowRoundSummary(false)}
+                onClick={() => { setShowRoundSummary(false); setLeavePending(false) }}
                 className="text-sm transition-colors"
                 style={{ color: 'var(--color-text-muted)' }}
               >

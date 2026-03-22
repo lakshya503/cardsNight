@@ -62,7 +62,7 @@ export function ResultsPanel({ results, currentUserId, isWinner }: Props) {
             >
               <div className="flex items-center gap-3">
                 <span className="text-2xl font-bold w-8" style={{ color: 'var(--color-text-muted)' }}>
-                  {r.placement}
+                  {r.placement > 0 ? r.placement : '—'}
                 </span>
                 <div>
                   <p className="font-semibold">
@@ -70,7 +70,7 @@ export function ResultsPanel({ results, currentUserId, isWinner }: Props) {
                     {isMe && <span className="text-xs" style={{ color: 'var(--color-accent)' }}>(you)</span>}
                   </p>
                   <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                    {r.result === 'win' ? '🏆 Winner' : 'Finished'}
+                    {r.result === 'win' ? '🏆 Winner' : r.placement === 0 ? 'Left game' : 'Finished'}
                   </p>
                 </div>
               </div>
