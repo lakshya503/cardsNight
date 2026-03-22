@@ -180,6 +180,7 @@ export function GameShell({
     setTrickCards(initialTrickCards)
     setTricksWon(initialTricksWon)
     setTrickAnimation(null)
+    setLeavePending(false)
     roundRef.current = initialRound
     currentTrickRef.current = initialCurrentTrick
   }, [initialRound?.id, initialRound?.current_player_id, initialRound?.status])
@@ -577,7 +578,11 @@ export function GameShell({
               <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Leave game?</span>
               <button
                 onClick={async () => {
-                  await fetch(`/api/games/${gameId}/leave`, { method: 'POST' })
+                  try {
+                    await fetch(`/api/games/${gameId}/leave`, { method: 'POST' })
+                  } catch {
+                    // best-effort — redirect regardless so the player can leave
+                  }
                   router.push('/')
                 }}
                 className="text-xs px-2 py-1 rounded bg-red-600 text-white font-medium"
@@ -847,7 +852,7 @@ export function GameShell({
       {showRoundSummary && summaryRoundNumber !== null && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-300"
-          onClick={() => setShowRoundSummary(false)}
+          onClick={() => { setShowRoundSummary(false); setLeavePending(false) }}
         >
           <div
             className="rounded-2xl shadow-2xl p-6 mx-4 w-full max-w-sm max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-8 duration-300"
@@ -901,7 +906,7 @@ export function GameShell({
 
             <div className="mt-5 pt-4 border-t text-center" style={{ borderColor: 'var(--color-border)' }}>
               <button
-                onClick={() => setShowRoundSummary(false)}
+                onClick={() => { setShowRoundSummary(false); setLeavePending(false) }}
                 className="text-sm transition-colors"
                 style={{ color: 'var(--color-text-muted)' }}
               >

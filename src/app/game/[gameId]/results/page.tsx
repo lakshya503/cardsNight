@@ -35,12 +35,6 @@ export default async function ResultsPage({ params }: PageProps) {
 
   if (!roomPlayer) redirect('/')
 
-  const { data: results } = await admin
-    .from('game_results')
-    .select('player_id, placement, result, total_score, profiles(display_name)')
-    .eq('game_id', gameId)
-    .order('placement', { ascending: true })
-
   // Repair pass: if the game is finished, ensure every dropped/disconnected player
   // has a game_results row. Safety net for cases where the explicit leave wasn't
   // triggered (e.g. network failure, browser killed). Active players are excluded —
@@ -81,10 +75,24 @@ export default async function ResultsPage({ params }: PageProps) {
     }
   }
 
-  const myResult = results?.find((r) => r.player_id === user.id)
+  // Fetch after repair pass so newly-inserted rows for dropped players are included.
+  // Sort: finished players by placement ascending; dropped players (placement 0) last.
+  const { data: results } = await admin
+    .from('game_results')
+    .select('player_id, placement, result, total_score, profiles(display_name)')
+    .eq('game_id', gameId)
+
+  const sortedResults = (results ?? []).slice().sort((a, b) => {
+    if (a.placement === 0 && b.placement === 0) return 0
+    if (a.placement === 0) return 1
+    if (b.placement === 0) return -1
+    return a.placement - b.placement
+  })
+
+  const myResult = sortedResults.find((r) => r.player_id === user.id)
   const isWinner = myResult?.result === 'win'
 
-  const normalised = (results ?? []).map((r) => ({
+  const normalised = sortedResults.map((r) => ({
     player_id: r.player_id,
     placement: r.placement,
     result: r.result,

@@ -37,8 +37,7 @@ function makeAdminMock({
   dropError = null as unknown,
   gameRoundIds = [{ id: 'round-1' }] as Array<{ id: string }>,
   cumScores = [{ score: 30 }, { score: 20 }] as Array<{ score: number }>,
-  existingGameResult = null as { id: string } | null,
-  insertError = null as unknown,
+  upsertError = null as unknown,
 } = {}) {
   // games SELECT: .select().eq().maybeSingle()
   const gameMaybeSingle = vi.fn().mockResolvedValue({ data: game })
@@ -68,14 +67,8 @@ function makeAdminMock({
   const scoresIn = vi.fn().mockReturnValue({ eq: scoresEqPlayerId })
   const scoresSelect = vi.fn().mockReturnValue({ in: scoresIn })
 
-  // game_results SELECT (idempotency): .select('id').eq('game_id').eq('player_id').maybeSingle()
-  const grCheckMaybeSingle = vi.fn().mockResolvedValue({ data: existingGameResult })
-  const grCheckEq2 = vi.fn().mockReturnValue({ maybeSingle: grCheckMaybeSingle })
-  const grCheckEq1 = vi.fn().mockReturnValue({ eq: grCheckEq2 })
-  const grCheckSelect = vi.fn().mockReturnValue({ eq: grCheckEq1 })
-
-  // game_results INSERT: .insert({...}) → { error }
-  const resultsInsert = vi.fn().mockResolvedValue({ error: insertError })
+  // game_results UPSERT: .upsert({...}, { onConflict, ignoreDuplicates }) → { error }
+  const resultsUpsert = vi.fn().mockResolvedValue({ error: upsertError })
 
   let rpCallCount = 0
   const fromMock = vi.fn().mockImplementation((table: string) => {
@@ -87,11 +80,11 @@ function makeAdminMock({
     }
     if (table === 'rounds') return { select: roundsSelect }
     if (table === 'round_scores') return { select: scoresSelect }
-    if (table === 'game_results') return { select: grCheckSelect, insert: resultsInsert }
+    if (table === 'game_results') return { upsert: resultsUpsert }
     throw new Error(`Unexpected table: ${table}`)
   })
 
-  return { from: fromMock, rpUpdate, resultsInsert, grCheckSelect }
+  return { from: fromMock, rpUpdate, resultsUpsert }
 }
 
 beforeEach(() => {
@@ -166,11 +159,11 @@ describe('POST /api/games/[gameId]/leave', () => {
     expect(updateArg.status).toBe('dropped')
 
     // game_results must record a loss with cumulative total_score
-    const insertArg = (admin.resultsInsert as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>
-    expect(insertArg.result).toBe('loss')
-    expect(insertArg.total_score).toBe(50)  // 30 + 20
-    expect(insertArg.player_id).toBe('player-1')
-    expect(insertArg.game_id).toBe('game-id')
+    const upsertArg = (admin.resultsUpsert as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>
+    expect(upsertArg.result).toBe('loss')
+    expect(upsertArg.total_score).toBe(50)  // 30 + 20
+    expect(upsertArg.player_id).toBe('player-1')
+    expect(upsertArg.game_id).toBe('game-id')
   })
 
   it('records total_score = 0 when player has no round_scores yet', async () => {
@@ -180,21 +173,8 @@ describe('POST /api/games/[gameId]/leave', () => {
 
     const res = await POST(makeRequest(), makeParams())
     expect(res.status).toBe(200)
-    const insertArg = (admin.resultsInsert as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>
-    expect(insertArg.total_score).toBe(0)
-  })
-
-  it('skips game_results insert when row already exists (idempotent)', async () => {
-    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
-    const admin = makeAdminMock({ existingGameResult: { id: 'existing-result' } })
-    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(admin)
-
-    const res = await POST(makeRequest(), makeParams())
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.status).toBe('left')
-
-    expect(admin.resultsInsert).not.toHaveBeenCalled()
+    const upsertArg = (admin.resultsUpsert as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>
+    expect(upsertArg.total_score).toBe(0)
   })
 
   it('calls resolveDroppedTurnChain after successful drop', async () => {
