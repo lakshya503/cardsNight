@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [M3 — Dropped Player Auto-Resolution] — 2026-03-21
+
+### Added
+- `POST /api/games/[gameId]/drop-player` — marks a disconnected player as dropped after the 60s reconnection window; 60s server-side enforcement via `disconnected_at`; conditional UPDATE `WHERE status = 'disconnected'` (idempotent); self-drop guard returns 400; inserts `game_results` row with `result = 'loss'` and cumulative `total_score` scoped to this game only; idempotency check skips insert if row already exists
+- `src/lib/game/autoResolve.ts` — shared auto-resolution module extracted from `expire-turn`; exports `autoResolveBid`, `autoResolvePlay`, and `resolveDroppedTurnChain`; player list derived from `hands` table for correct counts (includes dropped players dealt into the round); dropped players filtered from `round_scores` inserts and next-round dealing; `resolveDroppedTurnChain` loops with atomic claim lock to advance through consecutively dropped players
+- `GameShell` seeds `droppedPlayers` state from server (page now fetches `status = 'dropped'` room players and passes `initialDroppedPlayers` prop); `onExpired` calls `drop-player` endpoint with 5s retry on `too_early` response; `expire-turn` client-side polling for dropped players removed — server resolves turns directly
+
+### Changed
+- `expire-turn` route delegates bid/play resolution to `autoResolve.ts`; `autoResolveBid`/`autoResolvePlay` fixed to derive player list from `hands` table, correcting `isLastBidder` denominator and trick-completion count for dropped-player scenarios
+- Player query in `page.tsx` expanded to include `disconnected` players so disconnected players appear in scoreboard and player map during the reconnection window
+
+### Fixed
+- Pre-existing TypeScript errors: missing `afterEach` import, `unknown` cast in start route test, `departed` narrowing in Presence leave handler
+- Vitest file discovery excluded `.claude/worktrees/` to prevent test duplication across git worktrees
+
+---
+
 ## [M3 — Reconnection Banner] — 2026-03-21
 
 ### Added
