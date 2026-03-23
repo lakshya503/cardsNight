@@ -364,9 +364,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   const placements = determinePlacements(totalScores)
 
-  // Filter to active players only — dropped players already have game_results rows
-  // written by drop-player/route.ts, and including them would cause a unique constraint
-  // violation that aborts the entire insert.
+  // Defensive filter: `players` is already limited to `status = 'active'` (line 83),
+  // so dropped players won't appear in `totalScores` here. This set re-applies that
+  // boundary as a guard against the race where a player is dropped between the
+  // `players` fetch and this insert — preventing a unique constraint violation on
+  // (game_id, player_id) with any row already written by drop-player/route.ts.
   const activePlayerIds = new Set(players.map((p) => p.user_id))
 
   const { error: grError } = await admin.from('game_results').insert(

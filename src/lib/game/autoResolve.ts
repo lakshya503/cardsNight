@@ -306,7 +306,7 @@ export async function autoResolvePlay(
 
   // Insert round_scores for non-dropped players only
   // (disconnected-but-not-dropped players still earn scores)
-  await admin.from('round_scores').insert(
+  const { error: rsError } = await admin.from('round_scores').insert(
     Object.entries(roundScores)
       .filter(([playerId]) => players.some((p) => p.user_id === playerId && p.status !== 'dropped'))
       .map(([playerId, score]) => ({
@@ -317,6 +317,11 @@ export async function autoResolvePlay(
         tricks_won: tricksWonRecord[playerId] ?? 0,
       }))
   )
+
+  if (rsError) {
+    console.error('[autoResolve] round_scores insert error:', rsError)
+    return { ok: false, error: 'Failed to record round scores', httpStatus: 500 }
+  }
 
   await admin
     .from('rounds')
@@ -333,7 +338,7 @@ export async function autoResolvePlay(
     const { hands, remaining } = dealHands(playerIds, nextHandSize)
     const { trumpCard, trumpSuit } = drawTrump(remaining)
 
-    const { data: nextRound } = await admin
+    const { data: nextRound, error: nextRoundError } = await admin
       .from('rounds')
       .insert({
         game_id: gameId,
@@ -348,15 +353,18 @@ export async function autoResolvePlay(
       .select('id')
       .single()
 
-    if (nextRound) {
-      await admin.from('hands').insert(
-        playerIds.map((playerId) => ({
-          round_id: nextRound.id,
-          player_id: playerId,
-          cards: hands[playerId],
-        }))
-      )
+    if (nextRoundError || !nextRound) {
+      console.error('[autoResolve] next round insert error:', nextRoundError)
+      return { ok: false, error: 'Failed to start next round', httpStatus: 500 }
     }
+
+    await admin.from('hands').insert(
+      playerIds.map((playerId) => ({
+        round_id: nextRound.id,
+        player_id: playerId,
+        cards: hands[playerId],
+      }))
+    )
 
     return { ok: true, status: 'round_complete', winnerId }
   }
@@ -403,7 +411,15 @@ export async function autoResolvePlay(
     return { ok: false, error: 'Failed to record game results', httpStatus: 500 }
   }
 
-  await admin.from('games').update({ status: 'finished', finished_at: new Date().toISOString() }).eq('id', gameId)
+  const { error: gameFinishError } = await admin
+    .from('games')
+    .update({ status: 'finished', finished_at: new Date().toISOString() })
+    .eq('id', gameId)
+
+  if (gameFinishError) {
+    console.error('[autoResolve] game finish update error:', gameFinishError)
+    return { ok: false, error: 'Failed to finish game', httpStatus: 500 }
+  }
 
   return { ok: true, status: 'game_complete', winnerId }
 }
