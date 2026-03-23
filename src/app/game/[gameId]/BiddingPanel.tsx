@@ -54,16 +54,17 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
 
   const showForbidden = isLastBidder && forbiddenBid !== null && forbiddenBid >= 0 && forbiddenBid <= round.hand_size
 
+  if (round.hand_size === 0) {
+    return (
+      <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>No bids available.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
-      <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-base font-semibold">Place your bid</h2>
-        {showForbidden && (
-          <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            {forbiddenBid} is forbidden
-          </span>
-        )}
-      </div>
+      <h2 className="text-base font-semibold mb-3">Place your bid</h2>
 
       <div className="flex flex-wrap gap-1.5">
         {Array.from({ length: round.hand_size + 1 }, (_, i) => i).map((n) => {
@@ -75,8 +76,7 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
               onClick={() => submitBid(n)}
               disabled={!isValid || submitting}
               aria-label={isForbidden ? `Bid ${n} — forbidden` : `Bid ${n}`}
-              title={isForbidden ? `Cannot bid ${n} — bids must not sum to exactly ${round.hand_size}` : undefined}
-              className={['w-10 h-10 rounded-lg font-bold text-base transition-colors relative', submitting ? 'opacity-50' : ''].join(' ')}
+              className={['w-10 h-10 rounded-lg font-bold text-base transition-colors relative', submitting ? 'opacity-50' : ''].filter(Boolean).join(' ')}
               style={
                 isValid
                   ? { backgroundColor: 'var(--color-primary)', color: 'var(--color-text-on-primary)' }
@@ -84,7 +84,7 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
               }
             >
               {isForbidden ? (
-                <span className="relative">
+                <span className="relative inline-flex items-center justify-center">
                   <span className="opacity-40">{n}</span>
                   <span className="absolute inset-0 flex items-center justify-center">
                     <span className="block h-px w-5 rotate-45" style={{ backgroundColor: 'var(--color-text-muted)' }} />
@@ -96,7 +96,13 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
         })}
       </div>
 
-      {error && <p className="mt-3 text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
+      {showForbidden && (
+        <p className="mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          Bid {forbiddenBid} is not allowed — bids cannot sum to exactly {round.hand_size}.
+        </p>
+      )}
+
+      {error && <p className="mt-2 text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
     </div>
   )
 }
