@@ -124,6 +124,7 @@ function makePlayAdminMock({
   playedByPlayer = [] as Array<{ suit: string; value: string }>,
   existingTrickCards = [{ player_id: 'player-2', suit: 'hearts', value: 'K' }] as Array<{ player_id: string; suit: string; value: string }>,
   tcInsertError = null as unknown,
+  handsInsertError = null as unknown,
   roundBids = [] as Array<{ player_id: string; amount: number }>,
   completedTricks = [] as Array<{ winner_id: string | null }>,
   allRoundScores = [] as Array<{ player_id: string; score: number }>,
@@ -140,7 +141,7 @@ function makePlayAdminMock({
   const handsCardsSelect = vi.fn().mockReturnValue({ eq: handsCardsEq1 })
 
   // hands INSERT (for next round)
-  const handsInsert = vi.fn().mockResolvedValue({ error: null })
+  const handsInsert = vi.fn().mockResolvedValue({ error: handsInsertError })
 
   // room_players SELECT: .select().eq('room_id').in('user_id').order() → { data }
   const rpOrder = vi.fn().mockResolvedValue({ data: players })
@@ -497,6 +498,30 @@ describe('autoResolvePlay', () => {
     expect(admin.rsInsert).toHaveBeenCalled()
   })
 
+  it('returns ok:false when hands insert fails on next round', async () => {
+    const admin = makePlayAdminMock({
+      allTricks: [
+        { id: 'trick-1', trick_number: 1, led_suit: 'spades', winner_id: 'player-2' },
+        { id: 'trick-2', trick_number: 2, led_suit: 'spades', winner_id: null },
+      ],
+      handRowCards: [{ suit: 'spades', value: '2' }],
+      playedByPlayer: [{ suit: 'spades', value: 'K' }],
+      existingTrickCards: [{ player_id: 'player-2', suit: 'spades', value: '3' }],
+      roundBids: [
+        { player_id: 'player-1', amount: 1 },
+        { player_id: 'player-2', amount: 1 },
+      ],
+      completedTricks: [{ winner_id: 'player-2' }],
+      handsInsertError: { message: 'DB error' },
+    })
+    const round = { ...PLAYING_ROUND, hand_size: 2, round_number: 1 }
+
+    const result = await autoResolvePlay(admin as unknown as ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>, 'game-1', 'room-1', round)
+
+    expect(result.ok).toBe(false)
+    expect((result as { ok: false; error: string }).error).toBe('Failed to deal next round hands')
+  })
+
   it('inserts game_results for non-dropped players only on last round', async () => {
     // hand_size=1 → last round. player-2 is dropped
     const playersWithDropped = [
@@ -613,6 +638,7 @@ describe('resolveDroppedTurnChain', () => {
     } as Record<string, unknown> | null,
     currentPlayerStatus = 'dropped' as string,
     claimSucceeds = true,
+    bidsInsertError = null as unknown,
   } = {}) {
     // Build a reusable round SELECT chain factory
     function makeRoundSelectChain(data: Record<string, unknown> | null) {
@@ -667,7 +693,7 @@ describe('resolveDroppedTurnChain', () => {
     // bids SELECT: .select('amount').eq()
     const bidsSelectEq = vi.fn().mockResolvedValue({ data: [] })
     const bidsSelect = vi.fn().mockReturnValue({ eq: bidsSelectEq })
-    const bidsInsert = vi.fn().mockResolvedValue({ error: null })
+    const bidsInsert = vi.fn().mockResolvedValue({ error: bidsInsertError })
 
     // tricks INSERT
     const tricksInsert = vi.fn().mockResolvedValue({ error: null })
@@ -741,5 +767,20 @@ describe('resolveDroppedTurnChain', () => {
     await resolveDroppedTurnChain(admin as unknown as ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>, 'game-1', 'room-1')
     expect(admin.claimUpdate).toHaveBeenCalled()
     expect(admin.bidsInsert).toHaveBeenCalled()
+  })
+
+  it('stops the chain and logs when auto-resolve returns ok:false', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const admin = makeChainAdmin({
+      currentPlayerStatus: 'dropped',
+      bidsInsertError: { message: 'DB error' },
+    })
+    await resolveDroppedTurnChain(admin as unknown as ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>, 'game-1', 'room-1')
+    expect(admin.bidsInsert).toHaveBeenCalledTimes(1)
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[autoResolve] resolveDroppedTurnChain stopped:',
+      expect.stringContaining('bid')
+    )
+    consoleSpy.mockRestore()
   })
 })
