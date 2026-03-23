@@ -386,7 +386,7 @@ export async function autoResolvePlay(
   // already handled by the drop-player route
   const nonDroppedIds = new Set(players.filter((p) => p.status !== 'dropped').map((p) => p.user_id))
 
-  await admin.from('game_results').insert(
+  const { error: grError } = await admin.from('game_results').insert(
     placements
       .filter((p) => nonDroppedIds.has(p.playerId))
       .map((p) => ({
@@ -398,7 +398,12 @@ export async function autoResolvePlay(
       }))
   )
 
-  await admin.from('games').update({ status: 'finished' }).eq('id', gameId)
+  if (grError) {
+    console.error('[autoResolve] game_results insert error:', grError)
+    return { ok: false, error: 'Failed to record game results', httpStatus: 500 }
+  }
+
+  await admin.from('games').update({ status: 'finished', finished_at: new Date().toISOString() }).eq('id', gameId)
 
   return { ok: true, status: 'game_complete', winnerId }
 }

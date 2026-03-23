@@ -364,14 +364,21 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   const placements = determinePlacements(totalScores)
 
+  // Filter to active players only — dropped players already have game_results rows
+  // written by drop-player/route.ts, and including them would cause a unique constraint
+  // violation that aborts the entire insert.
+  const activePlayerIds = new Set(players.map((p) => p.user_id))
+
   const { error: grError } = await admin.from('game_results').insert(
-    placements.map((p) => ({
-      game_id: gameId,
-      player_id: p.playerId,
-      placement: p.placement,
-      result: p.result,
-      total_score: totalScores[p.playerId],
-    }))
+    placements
+      .filter((p) => activePlayerIds.has(p.playerId))
+      .map((p) => ({
+        game_id: gameId,
+        player_id: p.playerId,
+        placement: p.placement,
+        result: p.result,
+        total_score: totalScores[p.playerId],
+      }))
   )
 
   if (grError) {
@@ -381,7 +388,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   const { error: gameFinishError } = await admin
     .from('games')
-    .update({ status: 'finished' })
+    .update({ status: 'finished', finished_at: new Date().toISOString() })
     .eq('id', gameId)
 
   if (gameFinishError) {
