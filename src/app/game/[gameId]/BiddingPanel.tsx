@@ -52,33 +52,45 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
     }
   }
 
+  const showForbidden = isLastBidder && forbiddenBid !== null && forbiddenBid >= 0 && forbiddenBid <= round.hand_size
+
   return (
     <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
-      <h2 className="text-lg font-semibold mb-4">Place your bid</h2>
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 className="text-base font-semibold">Place your bid</h2>
+        {showForbidden && (
+          <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+            {forbiddenBid} is forbidden
+          </span>
+        )}
+      </div>
 
-      {isLastBidder && forbiddenBid !== null && forbiddenBid >= 0 && forbiddenBid <= round.hand_size && (
-        <p className="text-sm mb-3" style={{ color: 'var(--color-primary)' }}>
-          You cannot bid {forbiddenBid} — bids must not sum to exactly {round.hand_size}.
-        </p>
-      )}
-
-      <div className="grid grid-cols-3 gap-2 place-items-center">
+      <div className="flex flex-wrap gap-1.5">
         {Array.from({ length: round.hand_size + 1 }, (_, i) => i).map((n) => {
           const isValid = validBids.includes(n)
+          const isForbidden = showForbidden && n === forbiddenBid
           return (
             <button
               key={n}
               onClick={() => submitBid(n)}
               disabled={!isValid || submitting}
-              aria-label={`Bid ${n}`}
-              className={['w-12 h-12 rounded-lg font-bold text-lg transition-colors', submitting ? 'opacity-50' : ''].join(' ')}
+              aria-label={isForbidden ? `Bid ${n} — forbidden` : `Bid ${n}`}
+              title={isForbidden ? `Cannot bid ${n} — bids must not sum to exactly ${round.hand_size}` : undefined}
+              className={['w-10 h-10 rounded-lg font-bold text-base transition-colors relative', submitting ? 'opacity-50' : ''].join(' ')}
               style={
                 isValid
                   ? { backgroundColor: 'var(--color-primary)', color: 'var(--color-text-on-primary)' }
                   : { backgroundColor: 'var(--color-surface-raised)', color: 'var(--color-text-muted)', cursor: 'not-allowed' }
               }
             >
-              {n}
+              {isForbidden ? (
+                <span className="relative">
+                  <span className="opacity-40">{n}</span>
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <span className="block h-px w-5 rotate-45" style={{ backgroundColor: 'var(--color-text-muted)' }} />
+                  </span>
+                </span>
+              ) : n}
             </button>
           )
         })}
