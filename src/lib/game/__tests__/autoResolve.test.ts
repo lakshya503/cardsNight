@@ -247,7 +247,7 @@ function makePlayAdminMock({
     throw new Error(`Unexpected table in play mock: ${table}`)
   })
 
-  return { from: fromMock, tcInsert, roundUpdate, tricksUpdate, tricksInsert, rsInsert, gameResultsInsert }
+  return { from: fromMock, tcInsert, handsInsert, roundUpdate, tricksUpdate, tricksInsert, rsInsert, gameResultsInsert }
 }
 
 beforeEach(() => {
@@ -518,6 +518,8 @@ describe('autoResolvePlay', () => {
 
     const result = await autoResolvePlay(admin as unknown as ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>, 'game-1', 'room-1', round)
 
+    expect(admin.rsInsert).toHaveBeenCalled() // round_scores committed before the failure
+    expect(admin.handsInsert).toHaveBeenCalledTimes(1) // insert was reached and failed
     expect(result.ok).toBe(false)
     expect((result as { ok: false; error: string }).error).toBe('Failed to deal next round hands')
   })
@@ -779,7 +781,7 @@ describe('resolveDroppedTurnChain', () => {
     expect(admin.bidsInsert).toHaveBeenCalledTimes(1)
     expect(consoleSpy).toHaveBeenCalledWith(
       '[autoResolve] resolveDroppedTurnChain stopped:',
-      expect.stringContaining('bid')
+      'Failed to record auto-bid'
     )
     consoleSpy.mockRestore()
   })
