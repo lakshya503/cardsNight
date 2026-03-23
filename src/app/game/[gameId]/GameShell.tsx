@@ -803,7 +803,7 @@ export function GameShell({
                       key={`${card.suit}:${card.value}`}
                       layout
                       transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
-                      className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-2 ring-amber-400' : ' shadow-md'}`}
+                      className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-4 ring-amber-400' : ' shadow-md'}`}
                       style={round?.trump_suit === card.suit ? { boxShadow: 'var(--shadow-trump-glow)' } : undefined}
                     >
                       <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
