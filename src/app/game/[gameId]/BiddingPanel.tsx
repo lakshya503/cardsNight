@@ -24,13 +24,27 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Guard before any derived state — hand_size of 0 in an active bidding round
+  // is a data integrity error; render a fallback rather than an empty button row.
+  if (round.hand_size === 0) {
+    return (
+      <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Unexpected game state — please refresh.</p>
+      </div>
+    )
+  }
+
   const isLastBidder = existingBids.length === playerCount - 1
   const existingAmounts = existingBids.map((b) => b.amount)
   const validBids = getValidBids(round.hand_size, existingAmounts, isLastBidder)
 
+  // forbiddenBid can be negative when prior bids already exceed hand_size (overbid edge case).
+  // showForbidden guards against this with `>= 0`; getValidBids similarly returns all bids
+  // as valid when forbidden is negative (negative can never match any bid 0–hand_size).
   const forbiddenBid = isLastBidder
     ? round.hand_size - existingAmounts.reduce((s, a) => s + a, 0)
     : null
+  const showForbidden = isLastBidder && forbiddenBid !== null && forbiddenBid >= 0 && forbiddenBid <= round.hand_size
 
   async function submitBid(amount: number) {
     setSubmitting(true)
@@ -50,16 +64,6 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
     } finally {
       setSubmitting(false)
     }
-  }
-
-  const showForbidden = isLastBidder && forbiddenBid !== null && forbiddenBid >= 0 && forbiddenBid <= round.hand_size
-
-  if (round.hand_size === 0) {
-    return (
-      <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
-        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>No bids available.</p>
-      </div>
-    )
   }
 
   return (
