@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [M3 — Mobile Responsive Audit & UX Polish] — 2026-03-22
+
+### Fixed
+- `ResultsPanel`, `BiddingPanel` — hardcoded `#F5B800`/`#13131F` colors replaced with `var(--color-primary)` / `var(--color-text-on-primary)`
+- `GameShell`, `TrickPanel` — all remaining hardcoded hex/rgba replaced with design tokens: `--color-suit-dark`, `--color-suit-warm`, `--color-surface-raised`, `--color-primary-light`, `--color-error`, `--color-text-on-accent`; trump card glow extracted to `--shadow-trump-glow` CSS token
+- `GameShell` — leave/confirm button touch targets raised (`py-1` → `py-2`); top-level Leave trigger also given touch padding
+- `WaitingRoom` — room code text size `text-5xl` → `text-3xl sm:text-5xl` to prevent overflow on 375px viewports
+- `Scoreboard` — `max-h-48` raised to `max-h-64` to show all rows in 8–10 player games without scrolling
+- `rooms/new`, `rooms/join` — form card padding `p-10` → `p-6 sm:p-10` for comfortable layout on mobile
+- `rooms/new` — range slider accent `accent-indigo-500` → `accent-[var(--color-primary)]` (brand yellow)
+- `layout.tsx` — added `Viewport` export with `viewportFit: 'cover'` for notched device safe-area insets
+
+---
+
 ## [M3 — Profile / Game History] — 2026-03-22
 
 ### Added
