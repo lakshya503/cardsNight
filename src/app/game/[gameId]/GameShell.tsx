@@ -112,6 +112,7 @@ interface Props {
   initialTricksWon: Record<string, number>
   players: Player[]
   turnTimerSeconds: number | null
+  roomCode: string
   initialDroppedPlayers: string[]
 }
 
@@ -127,6 +128,7 @@ export function GameShell({
   initialTricksWon,
   players,
   turnTimerSeconds,
+  roomCode,
   initialDroppedPlayers,
 }: Props) {
   const router = useRouter()
@@ -568,7 +570,14 @@ export function GameShell({
 
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
-        <span className="font-semibold">Round {round?.round_number ?? '—'}</span>
+        <div className="flex flex-col leading-tight">
+          <span className="font-semibold">Round {round?.round_number ?? '—'}</span>
+          {roomCode && (
+            <span className="text-xs font-mono tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
+              {roomCode}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
             {round ? `${round.hand_size} card${round.hand_size !== 1 ? 's' : ''} this round` : ''}

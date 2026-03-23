@@ -36,10 +36,10 @@ export default async function GamePage({ params }: PageProps) {
 
   if (!roomPlayer) redirect('/')
 
-  // Fetch room settings (for turn timer)
+  // Fetch room settings (for turn timer and room code)
   const { data: room } = await admin
     .from('rooms')
-    .select('turn_timer_seconds')
+    .select('turn_timer_seconds, code')
     .eq('id', game.room_id)
     .maybeSingle()
 
@@ -161,6 +161,7 @@ export default async function GamePage({ params }: PageProps) {
       initialTricksWon={initialTricksWon}
       players={playerList}
       turnTimerSeconds={room?.turn_timer_seconds ?? null}
+      roomCode={room?.code ?? ''}
       initialDroppedPlayers={initialDroppedPlayers}
     />
   )
