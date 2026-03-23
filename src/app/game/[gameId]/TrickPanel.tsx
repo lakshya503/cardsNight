@@ -99,7 +99,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, onCardPlayed, l
       {isMyTurn ? (
         <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
           <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>Your hand</p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             {hand.map((card) => {
               const isValid = validatePlay(card, hand, ledSuit)
               const isTrump = card.suit === trumpSuit
@@ -138,7 +138,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, onCardPlayed, l
       ) : (
         <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
           <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>Your hand</p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             {hand.map((card) => (
               // layout + layoutId so cards slide into place and match the clickable render
               // when isMyTurn flips, preventing a flash
