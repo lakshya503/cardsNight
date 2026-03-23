@@ -806,7 +806,7 @@ export function GameShell({
               ) : (
                 // Read-only hand during bidding — layout animates reposition, no layoutId
                 // (layoutId is only used during the playing phase in TrickPanel to fly cards to center)
-                <div className="flex flex-wrap justify-center gap-2">
+                <div className="flex flex-wrap justify-start gap-2">
                   {hand.map((card) => (
                     <motion.div
                       key={`${card.suit}:${card.value}`}
