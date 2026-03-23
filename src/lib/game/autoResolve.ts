@@ -358,13 +358,18 @@ export async function autoResolvePlay(
       return { ok: false, error: 'Failed to start next round', httpStatus: 500 }
     }
 
-    await admin.from('hands').insert(
+    const { error: handsError } = await admin.from('hands').insert(
       playerIds.map((playerId) => ({
         round_id: nextRound.id,
         player_id: playerId,
         cards: hands[playerId],
       }))
     )
+
+    if (handsError) {
+      console.error('[autoResolve] hands insert error:', handsError)
+      return { ok: false, error: 'Failed to deal next round hands', httpStatus: 500 }
+    }
 
     return { ok: true, status: 'round_complete', winnerId }
   }
@@ -481,7 +486,10 @@ export async function resolveDroppedTurnChain(
     }
 
     // 7. If result is round_complete or game_complete, break
-    if (!result.ok) break
+    if (!result.ok) {
+      console.error('[autoResolve] resolveDroppedTurnChain stopped:', result.error)
+      break
+    }
     if (result.status === 'round_complete' || result.status === 'game_complete') break
 
     // 8. Otherwise loop again to check if the new current player is also dropped
