@@ -50,7 +50,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           className="text-2xl font-bold"
           style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)' }}
         >
-          cardsNight
+          <span style={{ color: 'var(--color-text)' }}>cards</span><span style={{ color: 'var(--color-primary)' }}>Night</span>
         </h1>
 
         <div className="flex items-center gap-4">

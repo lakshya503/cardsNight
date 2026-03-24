@@ -46,11 +46,18 @@ export default async function ProfilePage() {
   const displayName = profile?.display_name ?? user.email ?? 'Player'
   const avatarUrl = profile?.avatar_url
 
-  const { data: history } = await admin
+  // Use explicit FK hints to disambiguate: games→rooms has two FK paths
+  // (games.room_id→rooms.id AND rooms.current_game_id→games.id).
+  // Without hints PostgREST returns HTTP 300 and data is null, causing 0 stats.
+  const { data: history, error: historyError } = await admin
     .from('game_results')
-    .select('id, placement, result, total_score, created_at, games(finished_at, rooms(game_type))')
+    .select('id, placement, result, total_score, created_at, games!game_results_game_id_fkey(finished_at, rooms!games_room_id_fkey(game_type))')
     .eq('player_id', user.id)
     .order('created_at', { ascending: false })
+
+  if (historyError) {
+    console.error('[profile] Failed to fetch game history:', historyError)
+  }
 
   const rows = history ?? []
   const { totalGames, wins, winRate, latestFinishedAt } = computeStats(rows)
@@ -72,7 +79,7 @@ export default async function ProfilePage() {
           className="text-2xl font-bold"
           style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)' }}
         >
-          cardsNight
+          <span style={{ color: 'var(--color-text)' }}>cards</span><span style={{ color: 'var(--color-primary)' }}>Night</span>
         </Link>
         <div className="flex items-center gap-2">
           {avatarUrl && (

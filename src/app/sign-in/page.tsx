@@ -34,7 +34,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             className="text-4xl font-bold tracking-tight"
             style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)' }}
           >
-            cardsNight
+            <span style={{ color: 'var(--color-text)' }}>cards</span><span style={{ color: 'var(--color-primary)' }}>Night</span>
           </h1>
           <p className="mt-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
             {copy.auth.signInSubheading}
