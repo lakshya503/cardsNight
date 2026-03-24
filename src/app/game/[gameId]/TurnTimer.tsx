@@ -48,10 +48,11 @@ export function TurnTimer({ turnStartedAt, turnTimerSeconds, gameId }: Props) {
   const ratio = totalMs > 0 ? remainingMs / totalMs : 0
   const remainingSeconds = Math.ceil(remainingMs / 1000)
 
-  const colorClass =
-    ratio > 0.6 ? 'text-green-400' :
-    ratio > 0.3 ? 'text-amber-400' :
-    'text-red-400'
+  const colorLevel = ratio > 0.6 ? 'green' : ratio > 0.3 ? 'amber' : 'red'
+  const color =
+    colorLevel === 'green' ? 'var(--color-success)' :
+    colorLevel === 'amber' ? 'var(--color-warning)' :
+    'var(--color-error)'
 
   const pulseClass = remainingSeconds < 10 && remainingMs > 0 ? 'animate-pulse' : ''
 
@@ -59,7 +60,9 @@ export function TurnTimer({ turnStartedAt, turnTimerSeconds, gameId }: Props) {
     <div
       role="timer"
       data-testid="turn-timer"
-      className={`tabular-nums font-mono text-sm font-semibold ${colorClass} ${pulseClass}`}
+      data-color-level={colorLevel}
+      className={['tabular-nums font-mono text-sm font-semibold', pulseClass].filter(Boolean).join(' ')}
+      style={{ color }}
     >
       {remainingSeconds}s
     </div>

@@ -146,7 +146,7 @@ describe('ReconnectionBanner', () => {
       />
     )
     // 8s remaining → urgent
-    expect(screen.getByTestId('reconnection-countdown')).toHaveClass('text-red-400')
+    expect(screen.getByTestId('reconnection-countdown')).toHaveAttribute('data-urgent', 'true')
   })
 
   it('does not apply urgent styling when 10 or more seconds remain', () => {
@@ -158,6 +158,6 @@ describe('ReconnectionBanner', () => {
       />
     )
     // 55s remaining → not urgent
-    expect(screen.getByTestId('reconnection-countdown')).not.toHaveClass('text-red-400')
+    expect(screen.getByTestId('reconnection-countdown')).toHaveAttribute('data-urgent', 'false')
   })
 })

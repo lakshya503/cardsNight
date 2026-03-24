@@ -60,14 +60,20 @@ export function ReconnectionBanner({ displayName, disconnectedAt, onExpired }: P
   return (
     <div
       data-testid="reconnection-banner"
-      className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-900/30 px-4 py-2.5 text-sm"
+      className="flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 text-sm"
+      style={{
+        borderColor: 'var(--color-warning-border)',
+        backgroundColor: 'var(--color-warning-surface)',
+      }}
     >
-      <span className="text-amber-200">
+      <span style={{ color: 'var(--color-warning-subtle)' }}>
         <span className="font-semibold">{displayName}</span> disconnected — reconnecting…
       </span>
       <span
         data-testid="reconnection-countdown"
-        className={`tabular-nums font-mono font-semibold ${isUrgent ? 'text-red-400' : 'text-amber-400'}`}
+        data-urgent={isUrgent ? 'true' : 'false'}
+        className="tabular-nums font-mono font-semibold"
+        style={{ color: isUrgent ? 'var(--color-error)' : 'var(--color-warning)' }}
       >
         {remainingSeconds}s
       </span>

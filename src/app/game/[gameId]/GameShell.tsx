@@ -168,6 +168,9 @@ export function GameShell({
   // Refs so Realtime handlers can snapshot current state without stale closures
   const tricksWonRef = useRef<Record<string, number>>(initialTricksWon)
   const bidsRef = useRef<Bid[]>(initialBids)
+  // Accumulates round_scores INSERTs for the current round; snapshotted into
+  // summaryRoundScores when the round completes. Cleared when the next round starts.
+  const roundScoresRef = useRef<Record<string, number>>({})
 
   useEffect(() => { roundRef.current = round }, [round])
   useEffect(() => { currentTrickRef.current = currentTrick }, [currentTrick])
@@ -239,6 +242,7 @@ export function GameShell({
           rt('rounds UPDATE', { id: updated.id, status: updated.status, currentRoundId: roundRef.current?.id })
           if (updated.id !== roundRef.current?.id) {
             rt('rounds UPDATE → new round, resetting per-round state')
+            roundScoresRef.current = {}
             setBids([])
             setTrickCards([])
             setCurrentTrick(null)
@@ -249,9 +253,7 @@ export function GameShell({
             setSummaryRoundNumber(updated.round_number)
             setSummaryTricksWon({ ...tricksWonRef.current })
             setSummaryBids([...bidsRef.current])
-            // Do NOT reset summaryRoundScores here — round_scores INSERTs arrive before
-            // the round UPDATE, so the scores are already populated. Resetting here
-            // would wipe them and cause the summary to show +0 for every player.
+            setSummaryRoundScores({ ...roundScoresRef.current })
             setShowRoundSummary(true)
           }
           setRound(updated)
@@ -355,7 +357,7 @@ export function GameShell({
             ...prev,
             [rs.player_id]: (prev[rs.player_id] ?? 0) + rs.score,
           }))
-          setSummaryRoundScores((prev) => ({ ...prev, [rs.player_id]: rs.score }))
+          roundScoresRef.current = { ...roundScoresRef.current, [rs.player_id]: rs.score }
         }
       )
         .subscribe((status, err) => {

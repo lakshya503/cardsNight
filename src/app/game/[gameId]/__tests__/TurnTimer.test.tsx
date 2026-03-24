@@ -39,22 +39,22 @@ describe('TurnTimer', () => {
 
   // ── Color grades ─────────────────────────────────────────────────────────────
 
-  it('applies green color when more than 60% of time remains', () => {
+  it('applies green color level when more than 60% of time remains', () => {
     // 3s elapsed of 30s = 90% remaining → green
     render(<TurnTimer turnStartedAt={startedSecondsAgo(3)} turnTimerSeconds={30} gameId="g" />)
-    expect(screen.getByTestId('turn-timer')).toHaveClass('text-green-400')
+    expect(screen.getByTestId('turn-timer')).toHaveAttribute('data-color-level', 'green')
   })
 
-  it('applies amber color when 30–60% of time remains', () => {
+  it('applies amber color level when 30–60% of time remains', () => {
     // 16s elapsed of 30s ≈ 47% remaining → amber
     render(<TurnTimer turnStartedAt={startedSecondsAgo(16)} turnTimerSeconds={30} gameId="g" />)
-    expect(screen.getByTestId('turn-timer')).toHaveClass('text-amber-400')
+    expect(screen.getByTestId('turn-timer')).toHaveAttribute('data-color-level', 'amber')
   })
 
-  it('applies red color when less than 30% of time remains', () => {
+  it('applies red color level when less than 30% of time remains', () => {
     // 23s elapsed of 30s ≈ 23% remaining → red
     render(<TurnTimer turnStartedAt={startedSecondsAgo(23)} turnTimerSeconds={30} gameId="g" />)
-    expect(screen.getByTestId('turn-timer')).toHaveClass('text-red-400')
+    expect(screen.getByTestId('turn-timer')).toHaveAttribute('data-color-level', 'red')
   })
 
   // ── Pulse ────────────────────────────────────────────────────────────────────
