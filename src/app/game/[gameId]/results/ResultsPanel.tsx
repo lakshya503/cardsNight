@@ -53,7 +53,7 @@ export function ResultsPanel({ results, currentUserId, isWinner }: Props) {
               className={[
                 'flex items-center justify-between p-4',
                 i < results.length - 1 ? 'border-b' : '',
-                isFirst ? 'ring-1 ring-inset ring-amber-400/40' : '',
+                isFirst ? 'ring-1 ring-inset ring-[var(--color-trump)]/40' : '',
               ].join(' ')}
               style={{
                 backgroundColor: isMe ? 'var(--color-surface-raised)' : undefined,

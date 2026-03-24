@@ -21,10 +21,10 @@ function TrickProgress({ won, bid }: { won: number; bid: number }) {
       <div className="flex items-center gap-1.5">
         <div className="flex gap-0.5">
           {Array.from({ length: won }, (_, i) => (
-            <div key={i} className="bg-red-500" style={{ width: '10px', height: '5px', borderRadius: '2px' }} />
+            <div key={i} style={{ width: '10px', height: '5px', borderRadius: '2px', backgroundColor: 'var(--color-error)' }} />
           ))}
         </div>
-        <span className="text-xs text-red-400">nil ✗</span>
+        <span className="text-xs" style={{ color: 'var(--color-error)' }}>nil ✗</span>
       </div>
     )
   }
@@ -35,10 +35,11 @@ function TrickProgress({ won, bid }: { won: number; bid: number }) {
         {Array.from({ length: bid }, (_, i) => (
           <div
             key={i}
-            className={i < won ? (over ? 'bg-red-500' : 'bg-emerald-500') : ''}
             style={{
               width: '10px', height: '5px', borderRadius: '2px',
-              ...(i >= won && { backgroundColor: 'var(--color-surface-raised)' }),
+              backgroundColor: i < won
+                ? (over ? 'var(--color-error)' : 'var(--color-success)')
+                : 'var(--color-surface-raised)',
               transition: 'background-color 0.3s',
             }}
           />
@@ -46,12 +47,11 @@ function TrickProgress({ won, bid }: { won: number; bid: number }) {
         {over && Array.from({ length: won - bid }, (_, i) => (
           <div
             key={`x-${i}`}
-            className="bg-red-500"
-            style={{ width: '10px', height: '5px', borderRadius: '2px' }}
+            style={{ width: '10px', height: '5px', borderRadius: '2px', backgroundColor: 'var(--color-error)' }}
           />
         ))}
       </div>
-      <span className={`text-xs tabular-nums ${over ? 'text-red-400' : ''}`} style={over ? {} : { color: 'var(--color-text-muted)' }}>
+      <span className="text-xs tabular-nums" style={{ color: over ? 'var(--color-error)' : 'var(--color-text-muted)' }}>
         {won}/{bid}
       </span>
     </div>
@@ -918,13 +918,13 @@ export function GameShell({
                           {bid !== undefined && (
                             <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                               {wonCount}/{bid} tricks
-                              {exactBid && <span className="ml-1 text-emerald-400">✓ exact</span>}
+                              {exactBid && <span className="ml-1" style={{ color: 'var(--color-success)' }}>✓ exact</span>}
                             </p>
                           )}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className={`text-base font-bold tabular-nums ${roundScore > 0 ? 'text-emerald-400' : ''}`} style={roundScore === 0 ? { color: 'var(--color-text-muted)' } : {}}>
+                        <p className="text-base font-bold tabular-nums" style={{ color: roundScore > 0 ? 'var(--color-success)' : 'var(--color-text-muted)' }}>
                           {roundScore > 0 ? `+${roundScore}` : '+0'}
                         </p>
                         <p className="text-xs tabular-nums" style={{ color: 'var(--color-text-muted)' }}>{total} total</p>
