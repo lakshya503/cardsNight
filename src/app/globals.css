@@ -43,6 +43,7 @@
   /* Spades + Clubs: near-black on white cards  |  Hearts + Diamonds: red */
   --color-suit-dark:        #1E293B;
   --color-suit-warm:        #EF4444;
+  --color-trump:            #FBBF24;
 
   /* ── Radius ─────────────────────────────────────────── */
   --radius-sm:   6px;

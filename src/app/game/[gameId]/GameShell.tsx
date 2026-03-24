@@ -13,11 +13,20 @@ import type { Card, Suit, CardValue } from '@/lib/game/types'
 
 function TrickProgress({ won, bid }: { won: number; bid: number }) {
   if (bid === 0) {
-    // For a nil bid: show "nil" when on track; show red dots + fraction when busted
     if (won === 0) {
       return <span className="text-xs tabular-nums" style={{ color: 'var(--color-text-muted)' }}>nil</span>
     }
-    // Fall through to generic renderer — won > bid triggers red over-dots
+    // Busted nil — show one red dot per trick won + "nil ✗" label; avoid "X/0" fraction
+    return (
+      <div className="flex items-center gap-1.5">
+        <div className="flex gap-0.5">
+          {Array.from({ length: won }, (_, i) => (
+            <div key={i} className="bg-red-500" style={{ width: '10px', height: '5px', borderRadius: '2px' }} />
+          ))}
+        </div>
+        <span className="text-xs text-red-400">nil ✗</span>
+      </div>
+    )
   }
   const over = won > bid
   return (
@@ -818,7 +827,7 @@ export function GameShell({
                           key={`${card.suit}:${card.value}`}
                           layout
                           transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
-                          className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-4 ring-amber-400' : ' shadow-md'}`}
+                          className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-4 ring-[var(--color-trump)]' : ' shadow-md'}`}
                           style={round?.trump_suit === card.suit ? { boxShadow: 'var(--shadow-trump-glow)' } : undefined}
                         >
                           <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>

@@ -120,7 +120,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, onCardPlayed, l
                       transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
                       className={[
                         'relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none transition-opacity',
-                        isTrump ? 'ring-4 ring-amber-400' : 'shadow-md',
+                        isTrump ? 'ring-4 ring-[var(--color-trump)]' : 'shadow-md',
                         isValid
                           ? 'hover:ring-2 hover:ring-[var(--color-primary)]'
                           : 'opacity-40 cursor-not-allowed',
@@ -156,7 +156,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, onCardPlayed, l
                     layout
                     layoutId={`card-${card.suit}-${card.value}`}
                     transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
-                    className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${card.suit === trumpSuit ? ' ring-4 ring-amber-400' : ' shadow-md'}`}
+                    className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${card.suit === trumpSuit ? ' ring-4 ring-[var(--color-trump)]' : ' shadow-md'}`}
                     style={card.suit === trumpSuit ? { boxShadow: 'var(--shadow-trump-glow)' } : undefined}
                   >
                     <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
