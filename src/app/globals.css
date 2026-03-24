@@ -38,17 +38,15 @@
   --color-error-light:      rgba(239, 68, 68, 0.12);
   --color-warning:          #F59E0B;
   --color-warning-light:    rgba(245, 158, 11, 0.12);
+  --color-warning-border:   rgba(245, 158, 11, 0.40);   /* border on warning surfaces */
+  --color-warning-surface:  rgba(120, 53, 15, 0.30);    /* dark amber bg (amber-900/30) */
+  --color-warning-subtle:   #FDE68A;                    /* amber-200: body text on warning surfaces */
 
   /* ── Card suits ─────────────────────────────────────── */
   /* Spades + Clubs: near-black on white cards  |  Hearts + Diamonds: red */
   --color-suit-dark:        #1E293B;
   --color-suit-warm:        #EF4444;
   --color-trump:            #FBBF24;
-
-  /* ── Warning surface (reconnection banner) ──────────────── */
-  --color-warning-border:   rgba(245, 158, 11, 0.40);
-  --color-warning-surface:  rgba(120, 53, 15, 0.30);
-  --color-warning-subtle:   #FDE68A;
 
   /* ── Radius ─────────────────────────────────────────── */
   --radius-sm:   6px;

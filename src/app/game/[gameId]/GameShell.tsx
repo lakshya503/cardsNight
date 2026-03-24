@@ -242,6 +242,9 @@ export function GameShell({
           rt('rounds UPDATE', { id: updated.id, status: updated.status, currentRoundId: roundRef.current?.id })
           if (updated.id !== roundRef.current?.id) {
             rt('rounds UPDATE → new round, resetting per-round state')
+            // Safe to clear here: this branch fires on round ID change (new round),
+            // which only happens AFTER the previous round's complete branch has already
+            // snapshotted roundScoresRef into summaryRoundScores state.
             roundScoresRef.current = {}
             setBids([])
             setTrickCards([])
