@@ -138,7 +138,7 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, onCardPlayed, l
               </div>
             ))}
           </div>
-          {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-3 text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
         </div>
       ) : (
         <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
