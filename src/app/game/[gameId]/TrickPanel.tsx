@@ -99,62 +99,73 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, onCardPlayed, l
       {isMyTurn ? (
         <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
           <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>Your hand</p>
-          <div className="flex flex-wrap justify-start gap-2">
-            {hand.map((card) => {
-              const isValid = validatePlay(card, hand, ledSuit)
-              const isTrump = card.suit === trumpSuit
-              return (
-                // motion.button gives us layout (reposition) + layoutId (fly to center)
-                <motion.button
-                  key={`${card.suit}:${card.value}`}
-                  layout
-                  layoutId={`card-${card.suit}-${card.value}`}
-                  onClick={() => playCard(card)}
-                  disabled={!isValid || submitting}
-                  aria-label={`Play ${card.value} of ${card.suit}`}
-                  whileHover={isValid ? { y: -8, scale: 1.04 } : {}}
-                  whileTap={isValid ? { scale: 0.97 } : {}}
-                  transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
-                  className={[
-                    'relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none transition-opacity',
-                    isTrump ? 'ring-4 ring-amber-400' : 'shadow-md',
-                    isValid
-                      ? 'hover:ring-2 hover:ring-[var(--color-primary)]'
-                      : 'opacity-40 cursor-not-allowed',
-                    submitting ? 'opacity-50' : '',
-                  ].join(' ')}
-                  style={isTrump ? { boxShadow: 'var(--shadow-trump-glow)' } : undefined}
-                >
-                  <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
-                  <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
-                    {SUIT_SYMBOL[card.suit]}
-                  </div>
-                </motion.button>
-              )
-            })}
+          <div className="space-y-2">
+            {Array.from({ length: Math.ceil(hand.length / 4) }, (_, rowIdx) =>
+              hand.slice(rowIdx * 4, rowIdx * 4 + 4)
+            ).map((row, rowIdx) => (
+              <div key={rowIdx} className="flex justify-center gap-2">
+                {row.map((card) => {
+                  const isValid = validatePlay(card, hand, ledSuit)
+                  const isTrump = card.suit === trumpSuit
+                  return (
+                    <motion.button
+                      key={`${card.suit}:${card.value}`}
+                      layout
+                      layoutId={`card-${card.suit}-${card.value}`}
+                      onClick={() => playCard(card)}
+                      disabled={!isValid || submitting}
+                      aria-label={`Play ${card.value} of ${card.suit}`}
+                      whileHover={isValid ? { y: -8, scale: 1.04 } : {}}
+                      whileTap={isValid ? { scale: 0.97 } : {}}
+                      transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
+                      className={[
+                        'relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none transition-opacity',
+                        isTrump ? 'ring-4 ring-amber-400' : 'shadow-md',
+                        isValid
+                          ? 'hover:ring-2 hover:ring-[var(--color-primary)]'
+                          : 'opacity-40 cursor-not-allowed',
+                        submitting ? 'opacity-50' : '',
+                      ].filter(Boolean).join(' ')}
+                      style={isTrump ? { boxShadow: 'var(--shadow-trump-glow)' } : undefined}
+                    >
+                      <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
+                      <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
+                        {SUIT_SYMBOL[card.suit]}
+                      </div>
+                    </motion.button>
+                  )
+                })}
+              </div>
+            ))}
           </div>
           {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
         </div>
       ) : (
         <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
           <p className="text-sm mb-3" style={{ color: 'var(--color-text-muted)' }}>Your hand</p>
-          <div className="flex flex-wrap justify-start gap-2">
-            {hand.map((card) => (
-              // layout + layoutId so cards slide into place and match the clickable render
-              // when isMyTurn flips, preventing a flash
-              <motion.div
-                key={`${card.suit}:${card.value}`}
-                layout
-                layoutId={`card-${card.suit}-${card.value}`}
-                transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
-                className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${card.suit === trumpSuit ? ' ring-4 ring-amber-400' : ' shadow-md'}`}
-                style={card.suit === trumpSuit ? { boxShadow: 'var(--shadow-trump-glow)' } : undefined}
-              >
-                <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
-                <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
-                  {SUIT_SYMBOL[card.suit]}
-                </div>
-              </motion.div>
+          <div className="space-y-2">
+            {Array.from({ length: Math.ceil(hand.length / 4) }, (_, rowIdx) =>
+              hand.slice(rowIdx * 4, rowIdx * 4 + 4)
+            ).map((row, rowIdx) => (
+              <div key={rowIdx} className="flex justify-center gap-2">
+                {row.map((card) => (
+                  // layout + layoutId so cards slide into place and match the clickable render
+                  // when isMyTurn flips, preventing a flash
+                  <motion.div
+                    key={`${card.suit}:${card.value}`}
+                    layout
+                    layoutId={`card-${card.suit}-${card.value}`}
+                    transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
+                    className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${card.suit === trumpSuit ? ' ring-4 ring-amber-400' : ' shadow-md'}`}
+                    style={card.suit === trumpSuit ? { boxShadow: 'var(--shadow-trump-glow)' } : undefined}
+                  >
+                    <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
+                    <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
+                      {SUIT_SYMBOL[card.suit]}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             ))}
           </div>
         </div>

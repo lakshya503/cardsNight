@@ -198,7 +198,7 @@ A full game consists of multiple rounds. Cards dealt decrease by 1 each round un
 
 #### Who starts each round
 
-Players take turns leading each round. The starting player rotates by one position each round. The same player who leads bidding leads the first trick of that round.
+Bidding order rotates by one seat each round. The winner of the last trick of the previous round leads the first trick of the current round. In round 1 (no previous round), the player whose turn it is to lead bidding also leads the first trick.
 
 ### 5.4 Bidding
 

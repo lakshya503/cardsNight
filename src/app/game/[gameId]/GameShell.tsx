@@ -13,11 +13,11 @@ import type { Card, Suit, CardValue } from '@/lib/game/types'
 
 function TrickProgress({ won, bid }: { won: number; bid: number }) {
   if (bid === 0) {
-    return (
-      <span className={`text-xs font-medium ${won === 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-        {won === 0 ? '0 bid ✓' : `${won} won (busted)`}
-      </span>
-    )
+    // For a nil bid: show "nil" when on track; show red dots + fraction when busted
+    if (won === 0) {
+      return <span className="text-xs tabular-nums" style={{ color: 'var(--color-text-muted)' }}>nil</span>
+    }
+    // Fall through to generic renderer — won > bid triggers red over-dots
   }
   const over = won > bid
   return (
@@ -240,7 +240,9 @@ export function GameShell({
             setSummaryRoundNumber(updated.round_number)
             setSummaryTricksWon({ ...tricksWonRef.current })
             setSummaryBids([...bidsRef.current])
-            setSummaryRoundScores({})
+            // Do NOT reset summaryRoundScores here — round_scores INSERTs arrive before
+            // the round UPDATE, so the scores are already populated. Resetting here
+            // would wipe them and cause the summary to show +0 for every player.
             setShowRoundSummary(true)
           }
           setRound(updated)
@@ -804,22 +806,28 @@ export function GameShell({
                   handOnly
                 />
               ) : (
-                // Read-only hand during bidding — layout animates reposition, no layoutId
-                // (layoutId is only used during the playing phase in TrickPanel to fly cards to center)
-                <div className="flex flex-wrap justify-start gap-2">
-                  {hand.map((card) => (
-                    <motion.div
-                      key={`${card.suit}:${card.value}`}
-                      layout
-                      transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
-                      className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-4 ring-amber-400' : ' shadow-md'}`}
-                      style={round?.trump_suit === card.suit ? { boxShadow: 'var(--shadow-trump-glow)' } : undefined}
-                    >
-                      <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
-                      <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
-                        {SUIT_SYMBOL[card.suit]}
-                      </div>
-                    </motion.div>
+                // Read-only hand during bidding — pyramid layout, rows of 4, centered.
+                // No layoutId here (only used in TrickPanel to fly cards to center).
+                <div className="space-y-2">
+                  {Array.from({ length: Math.ceil(hand.length / 4) }, (_, rowIdx) =>
+                    hand.slice(rowIdx * 4, rowIdx * 4 + 4)
+                  ).map((row, rowIdx) => (
+                    <div key={rowIdx} className="flex justify-center gap-2">
+                      {row.map((card) => (
+                        <motion.div
+                          key={`${card.suit}:${card.value}`}
+                          layout
+                          transition={{ layout: { type: 'spring', stiffness: 400, damping: 30 } }}
+                          className={`relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none${round?.trump_suit === card.suit ? ' ring-4 ring-amber-400' : ' shadow-md'}`}
+                          style={round?.trump_suit === card.suit ? { boxShadow: 'var(--shadow-trump-glow)' } : undefined}
+                        >
+                          <span className={`text-base font-bold leading-none ${SUIT_COLOR[card.suit]}`}>{card.value}</span>
+                          <div className={`flex-1 flex items-center justify-center text-4xl ${SUIT_COLOR[card.suit]}`}>
+                            {SUIT_SYMBOL[card.suit]}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
                   ))}
                 </div>
               )}
