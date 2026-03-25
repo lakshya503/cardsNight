@@ -381,6 +381,20 @@ Playwright E2E tests need authenticated `page.request` contexts. The SSR client 
 
 ---
 
+---
+
+### Feedback screenshot storage — signed URLs, 30-day TTL
+
+User-submitted screenshots are uploaded to a **private** Supabase Storage bucket (`feedback-screenshots`). A signed URL (30-day TTL) is generated and embedded in the GitHub issue body at creation time.
+
+**Why private bucket + signed URLs:** Keeps user screenshots access-controlled — random URL guessing cannot expose them.
+
+**Known tradeoff:** Signed URLs are non-revocable. Once issued, a URL remains valid for the full 30 days even if the underlying object is deleted. Screenshots should be treated as PII — do not share issue links containing screenshot URLs externally. 30 days was chosen as a practical window for issue triage; after expiry the images in the GitHub issue become broken links.
+
+**Deferred:** Uploading screenshots directly to GitHub via the Contents API (committing to an orphan branch) would give permanent links, but adds complexity and repo noise. Revisit if 30-day expiry proves insufficient.
+
+---
+
 ## Decisions Deferred
 
 - **Hosting cost optimization** — revisit at M4 when public traffic begins

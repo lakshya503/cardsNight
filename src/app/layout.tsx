@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Fraunces, DM_Sans } from 'next/font/google'
 import './globals.css'
+import { FeedbackWidget } from '@/components/FeedbackWidget'
 
 const fraunces = Fraunces({
   variable: '--font-fraunces',
@@ -35,6 +36,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${fraunces.variable} ${dmSans.variable}`}>
         {children}
+        <FeedbackWidget />
       </body>
     </html>
   )
