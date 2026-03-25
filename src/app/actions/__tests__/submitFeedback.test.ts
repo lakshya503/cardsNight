@@ -303,6 +303,33 @@ describe('submitFeedback', () => {
     expect(mockAdmin.from).toHaveBeenCalledWith('feedback_submissions')
   })
 
+  it('creates GitHub issue (fail-open) when AI filter throws', async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: 'user-1', email: 'user@example.com' } },
+        }),
+      },
+    } as never)
+    vi.mocked(createAdminClient).mockReturnValue(makeMockAdmin() as never)
+    mockAnthropicCreate.mockRejectedValueOnce(new DOMException('The operation was aborted', 'AbortError'))
+
+    const formData = new FormData()
+    formData.set('text', 'The game froze on round 3')
+    formData.set('type', 'bug')
+    formData.set('pageUrl', '/game/abc')
+    formData.set('userAgent', 'ua')
+    formData.set('screenSize', '1440x900')
+
+    const result = await submitFeedback(formData)
+    expect(result).toEqual({ success: true })
+    // Issue must still be created even though AI filter threw
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/issues'),
+      expect.objectContaining({ method: 'POST' })
+    )
+  })
+
   it('returns unauthenticated when no user', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {

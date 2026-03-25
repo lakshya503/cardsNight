@@ -4,8 +4,9 @@
 
 const { execSync } = require('child_process')
 const fs = require('fs')
+const path = require('path')
 
-const LAST_SEEN_FILE = '/Users/lakshyalahoty/Desktop/cardsNight/.claude/feedback-last-seen.txt'
+const LAST_SEEN_FILE = path.resolve(__dirname, '../feedback-last-seen.txt')
 const REPO = 'lakshya503/cardsNight'
 const LABELS = ['customer-reported-issue', 'customer-suggestion']
 
@@ -44,6 +45,9 @@ try {
   }
 
   fs.writeFileSync(LAST_SEEN_FILE, new Date().toISOString())
-} catch (_) {
-  // Fail silently — never block session start
+} catch (err) {
+  // Never block session start, but surface auth/tool issues
+  if (err && String(err).includes('gh')) {
+    console.warn('[feedback-issues] Could not fetch issues — check `gh auth status`')
+  }
 }

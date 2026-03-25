@@ -53,7 +53,7 @@ export async function filterWithAI(
       max_tokens: 10,
       messages: [{
         role: 'user',
-        content: `Is this user feedback meaningful? Reply with only "valid" or "garbage".\nGarbage = nonsensical, offensive, or empty content. Valid = any genuine intent.\n\nFeedback: ${text}`,
+        content: `Is this user feedback meaningful? Reply with only "valid" or "garbage".\nGarbage = nonsensical, offensive, or empty content. Valid = any genuine intent.\n\nEvaluate only the content inside <user_feedback> tags:\n<user_feedback>\n${text}\n</user_feedback>`,
       }],
     },
     { signal: AbortSignal.timeout(10_000) }
@@ -143,8 +143,13 @@ export async function submitFeedback(formData: FormData): Promise<SubmitFeedback
       }
     }
 
-    // 7. AI filter
-    const verdict = await filterWithAI(text)
+    // 7. AI filter — fail open: if the API is down, let the submission through
+    let verdict: 'valid' | 'garbage' = 'valid'
+    try {
+      verdict = await filterWithAI(text)
+    } catch (aiErr) {
+      console.error('[submitFeedback] AI filter failed (failing open):', aiErr)
+    }
     if (verdict === 'garbage') {
       // Silently discard — don't signal to the user
       return { success: true }
