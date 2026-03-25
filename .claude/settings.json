@@ -32,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node -e \"const {execSync}=require('child_process');const fs=require('fs');const f='/Users/lakshyalahoty/Desktop/cardsNight/.claude/feedback-last-seen.txt';const lastSeen=fs.existsSync(f)?fs.readFileSync(f,'utf8').trim():'2000-01-01T00:00:00Z';try{const r1=execSync('gh issue list --repo lakshya503/cardsNight --label customer-reported-issue --state open --json number,title,createdAt,labels --limit 20',{encoding:'utf8'});const r2=execSync('gh issue list --repo lakshya503/cardsNight --label customer-suggestion --state open --json number,title,createdAt,labels --limit 20',{encoding:'utf8'});const seen=new Set();const issues=[...JSON.parse(r1),...JSON.parse(r2)].filter(i=>{if(seen.has(i.number))return false;seen.add(i.number);return true;});const newIssues=issues.filter(i=>new Date(i.createdAt)>new Date(lastSeen));if(newIssues.length>0){console.log('\\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');console.log('📬 '+newIssues.length+' new customer feedback issue'+(newIssues.length!==1?'s':'')+':');newIssues.forEach(i=>{const t=i.labels.find(l=>l.name==='customer-suggestion')?'suggestion':'bug';const mins=Math.round((Date.now()-new Date(i.createdAt).getTime())/60000);const age=mins<60?mins+'m ago':Math.round(mins/60)+'h ago';console.log('  #'+i.number+' — \"'+i.title+'\" ('+t+', '+age+')');});console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n');}fs.writeFileSync(f,new Date().toISOString());}catch(e){}\" 2>/dev/null || true"
+            "command": "node /Users/lakshyalahoty/Desktop/cardsNight/.claude/scripts/check-feedback-issues.js 2>/dev/null || true"
           }
         ]
       }

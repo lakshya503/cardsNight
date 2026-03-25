@@ -14,6 +14,8 @@ export type Database = {
   }
   public: {
     Tables: {
+      // RLS is enabled with no user-facing policies — all access is via the
+      // service-role admin client only. anon and authenticated roles are denied.
       feedback_submissions: {
         Row: {
           id: string
