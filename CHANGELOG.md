@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [M3 — Feedback Widget] — 2026-03-25
+
+### Added
+- Floating feedback button rendered globally in the app layout — visible only to authenticated users
+- `submitFeedback` server action: validates input (type, text length, screenshot count/size), rate-limits to 5 submissions per user per 24h, uploads screenshots to a private Supabase Storage bucket with 30-day signed URLs, AI-filters garbage with Claude Haiku (fail-open on API error), creates a GitHub issue with `customer-reported-issue` or `customer-suggestion` label, and sends a confirmation email via Resend
+- `feedback_submissions` Supabase table for rate limit tracking; RLS enabled, service-role access only
+- `feedback-screenshots` private Supabase Storage bucket with upload policy
+- GitHub labels `customer-reported-issue` and `customer-suggestion` created in the repo
+- SessionStart hook (`check-feedback-issues.js`) — surfaces new customer feedback issues at the start of each Claude Code session, comparing against a `feedback-last-seen.txt` timestamp
+
+---
+
 ## [M3 — Mobile Responsive Audit & UX Polish] — 2026-03-22
 
 ### Fixed
