@@ -23,8 +23,8 @@ export function FeedbackWidget() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getSession().then(({ data }) => {
-      setIsAuthenticated(!!data.session)
+    supabase.auth.getUser().then(({ data }) => {
+      setIsAuthenticated(!!data.user)
     })
   }, [])
 
@@ -216,7 +216,7 @@ export function FeedbackWidget() {
                           <button
                             onClick={() => removeScreenshot(i)}
                             className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-xs flex items-center justify-center"
-                            style={{ backgroundColor: 'var(--color-error)', color: '#fff' }}
+                            style={{ backgroundColor: 'var(--color-error)', color: 'var(--color-text-on-accent)' }}
                           >
                             ✕
                           </button>

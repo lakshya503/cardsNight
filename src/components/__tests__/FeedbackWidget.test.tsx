@@ -20,8 +20,8 @@ import { createClient } from '@/lib/supabase/client'
 function mockAuthenticatedSession() {
   vi.mocked(createClient).mockReturnValue({
     auth: {
-      getSession: vi.fn().mockResolvedValue({
-        data: { session: { user: { id: 'test-user' } } },
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: { id: 'user-1' } },
       }),
     },
   } as unknown as ReturnType<typeof createClient>)
@@ -142,7 +142,7 @@ describe('FeedbackWidget', () => {
   it('hides the trigger button when not authenticated', async () => {
     vi.mocked(createClient).mockReturnValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+        getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
       },
     } as unknown as ReturnType<typeof createClient>)
 
