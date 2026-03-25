@@ -17,9 +17,10 @@ const GITHUB_REPO = process.env.GITHUB_REPO ?? 'lakshya503/cardsNight'
 
 export function validateSubmission(
   text: string,
-  _type: 'bug' | 'suggestion',
+  type: 'bug' | 'suggestion' | string,
   screenshots: File[]
-): 'text_required' | 'text_too_long' | 'too_many_screenshots' | 'file_too_large' | null {
+): 'invalid_type' | 'text_required' | 'text_too_long' | 'too_many_screenshots' | 'file_too_large' | null {
+  if (type !== 'bug' && type !== 'suggestion') return 'invalid_type'
   if (!text.trim()) return 'text_required'
   if (text.length > 5000) return 'text_too_long'
   if (screenshots.length > MAX_SCREENSHOTS) return 'too_many_screenshots'
@@ -75,10 +76,10 @@ export function buildIssueBody(params: {
     ? `\n\n**Screenshots:**\n${screenshotUrls.map((url, i) => `![screenshot-${i + 1}](${url})`).join('\n')}`
     : ''
 
-  return `**Reporter:** ${userEmail}
-**Page:** ${pageUrl}
-**User Agent:** ${userAgent}
-**Screen:** ${screenSize}
+  return `**Reporter:** \`${userEmail}\`
+**Page:** \`${pageUrl}\`
+**User Agent:** \`${userAgent}\`
+**Screen:** \`${screenSize}\`
 
 ---
 
@@ -131,6 +132,8 @@ export async function submitFeedback(formData: FormData): Promise<SubmitFeedback
           .from('feedback-screenshots')
           .createSignedUrl(path, 60 * 60 * 24 * 7) // 7 days
         if (data?.signedUrl) screenshotUrls.push(data.signedUrl)
+      } else {
+        console.error('[submitFeedback] Screenshot upload failed:', error)
       }
     }
 
@@ -176,13 +179,15 @@ export async function submitFeedback(formData: FormData): Promise<SubmitFeedback
 
     // 9. Send confirmation email — non-fatal; email failure must not undo a successfully created issue
     try {
-      const resend = new Resend(process.env.RESEND_API_KEY)
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL!,
-        to: user.email!,
-        subject: 'We got your feedback — cardsNight',
-        text: `Hi,\n\nThanks for reaching out! We've logged your ${type === 'bug' ? 'bug report' : 'suggestion'} and will look into it.\n\nThanks,\nThe cardsNight team`,
-      })
+      if (user.email) {
+        const resend = new Resend(process.env.RESEND_API_KEY)
+        await resend.emails.send({
+          from: process.env.RESEND_FROM_EMAIL!,
+          to: user.email,
+          subject: 'We got your feedback — cardsNight',
+          text: `Hi,\n\nThanks for reaching out! We've logged your ${type === 'bug' ? 'bug report' : 'suggestion'} and will look into it.\n\nThanks,\nThe cardsNight team`,
+        })
+      }
     } catch (emailErr) {
       console.error('[submitFeedback] Confirmation email failed (non-fatal):', emailErr)
     }

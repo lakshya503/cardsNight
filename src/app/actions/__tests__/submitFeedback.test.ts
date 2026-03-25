@@ -1,11 +1,39 @@
 // src/app/actions/__tests__/submitFeedback.test.ts
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   isRateLimited,
   filterWithAI,
   buildIssueBody,
   validateSubmission,
 } from '../submitFeedback'
+
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(),
+}))
+
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: vi.fn(),
+}))
+
+vi.mock('resend', () => ({
+  Resend: vi.fn().mockImplementation(() => ({
+    emails: { send: vi.fn().mockResolvedValue({ id: 'email-123' }) },
+  })),
+}))
+
+vi.mock('@anthropic-ai/sdk', () => {
+  const create = vi.fn().mockResolvedValue({
+    content: [{ type: 'text', text: 'valid' }],
+  })
+  function MockAnthropic() {
+    return { messages: { create } }
+  }
+  return { default: MockAnthropic }
+})
+
+import { submitFeedback } from '../submitFeedback'
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 // ── validateSubmission ────────────────────────────────────────────────────────
 
@@ -30,6 +58,10 @@ describe('validateSubmission', () => {
   it('returns error when a screenshot exceeds 2MB', () => {
     const bigFile = new File([new ArrayBuffer(3 * 1024 * 1024)], 'big.png', { type: 'image/png' })
     expect(validateSubmission('valid text', 'bug', [bigFile])).toBe('file_too_large')
+  })
+
+  it('returns error when type is invalid', () => {
+    expect(validateSubmission('valid text', 'invalid' as never, [])).toBe('invalid_type')
   })
 
   it('returns null when input is valid', () => {
@@ -151,5 +183,101 @@ describe('isRateLimited', () => {
 
     const result = await isRateLimited('user-123', mockAdmin as never)
     expect(result).toBe(false)
+  })
+})
+
+// ── submitFeedback integration ────────────────────────────────────────────────
+
+function makeMockAdmin(overrides: Record<string, unknown> = {}) {
+  const insert = vi.fn().mockResolvedValue({ error: null })
+  const gte = vi.fn().mockResolvedValue({ count: 0, error: null })
+  const eq = vi.fn().mockReturnValue({ gte })
+  const select = vi.fn().mockReturnValue({ eq })
+  const upload = vi.fn().mockResolvedValue({ error: null })
+  const createSignedUrl = vi.fn().mockResolvedValue({ data: { signedUrl: 'https://signed.url/img.png' } })
+  const storageBucket = { upload, createSignedUrl }
+  const storage = { from: vi.fn().mockReturnValue(storageBucket) }
+  return {
+    from: vi.fn().mockReturnValue({ select, insert }),
+    storage,
+    ...overrides,
+  }
+}
+
+describe('submitFeedback', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: vi.fn().mockResolvedValue(''),
+    })
+  })
+
+  it('returns success on happy path', async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: 'user-1', email: 'user@example.com' } },
+        }),
+      },
+    } as never)
+    vi.mocked(createAdminClient).mockReturnValue(makeMockAdmin() as never)
+
+    const formData = new FormData()
+    formData.set('text', 'The scoreboard does not update')
+    formData.set('type', 'bug')
+    formData.set('pageUrl', '/game/abc')
+    formData.set('userAgent', 'Mozilla/5.0')
+    formData.set('screenSize', '1440x900')
+
+    const result = await submitFeedback(formData)
+    expect(result).toEqual({ success: true })
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/issues'),
+      expect.objectContaining({ method: 'POST' })
+    )
+  })
+
+  it('returns server_error when GitHub API fails, but rate limit is still recorded', async () => {
+    const mockAdmin = makeMockAdmin()
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: 'user-1', email: 'user@example.com' } },
+        }),
+      },
+    } as never)
+    vi.mocked(createAdminClient).mockReturnValue(mockAdmin as never)
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, text: vi.fn().mockResolvedValue('Forbidden') })
+
+    const formData = new FormData()
+    formData.set('text', 'Something broke')
+    formData.set('type', 'bug')
+    formData.set('pageUrl', '/')
+    formData.set('userAgent', 'ua')
+    formData.set('screenSize', '1280x800')
+
+    const result = await submitFeedback(formData)
+    expect(result).toEqual({ error: 'server_error' })
+    // Rate limit insert should still have been called before the GitHub failure
+    expect(mockAdmin.from).toHaveBeenCalledWith('feedback_submissions')
+  })
+
+  it('returns unauthenticated when no user', async () => {
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
+      },
+    } as never)
+
+    const formData = new FormData()
+    formData.set('text', 'A bug')
+    formData.set('type', 'bug')
+    formData.set('pageUrl', '/')
+    formData.set('userAgent', 'ua')
+    formData.set('screenSize', '1280x800')
+
+    const result = await submitFeedback(formData)
+    expect(result).toEqual({ error: 'unauthenticated' })
   })
 })
