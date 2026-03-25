@@ -70,7 +70,7 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
     <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--color-surface)' }}>
       <h2 className="text-base font-semibold mb-3">Place your bid</h2>
 
-      <div className="flex justify-between gap-1">
+      <div className="flex flex-wrap gap-2">
         {Array.from({ length: round.hand_size + 1 }, (_, i) => i).map((n) => {
           const isValid = validBids.includes(n)
           const isForbidden = showForbidden && n === forbiddenBid
