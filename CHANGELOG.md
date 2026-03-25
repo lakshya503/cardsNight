@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [M3 — Bug Fixes from Customer Feedback] — 2026-03-25
+
+### Fixed
+- Trump cards in hand no longer lose their glow when hovered — `hover:ring-2` was resetting the `box-shadow` (trump glow) via Tailwind's ring shadow mechanism; hover ring is now skipped for trump cards, with `cursor-pointer` and the existing lift animation providing playability feedback (#55)
+- Bid panel buttons no longer spread apart as rounds progress — `flex justify-between` was distributing extra space evenly, so fewer buttons (smaller hand size) meant more gap; changed to `flex-wrap gap-2` for consistent spacing (#56)
+
+---
+
 ## [M3 — Feedback Widget] — 2026-03-25
 
 ### Added
