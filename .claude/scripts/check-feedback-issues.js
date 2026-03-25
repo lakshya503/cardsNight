@@ -46,8 +46,6 @@ try {
 
   fs.writeFileSync(LAST_SEEN_FILE, new Date().toISOString())
 } catch (err) {
-  // Never block session start, but surface auth/tool issues
-  if (err && String(err).includes('gh')) {
-    console.warn('[feedback-issues] Could not fetch issues — check `gh auth status`')
-  }
+  // Never block session start, but surface any failure so auth/tool issues are visible
+  console.warn('[feedback-issues] Could not fetch issues:', err)
 }

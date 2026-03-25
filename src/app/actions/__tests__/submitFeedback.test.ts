@@ -311,7 +311,8 @@ describe('submitFeedback', () => {
         }),
       },
     } as never)
-    vi.mocked(createAdminClient).mockReturnValue(makeMockAdmin() as never)
+    const mockAdmin = makeMockAdmin()
+    vi.mocked(createAdminClient).mockReturnValue(mockAdmin as never)
     mockAnthropicCreate.mockRejectedValueOnce(new DOMException('The operation was aborted', 'AbortError'))
 
     const formData = new FormData()
@@ -323,6 +324,8 @@ describe('submitFeedback', () => {
 
     const result = await submitFeedback(formData)
     expect(result).toEqual({ success: true })
+    // Rate limit insert must have been recorded before the AI filter ran
+    expect(mockAdmin.from).toHaveBeenCalledWith('feedback_submissions')
     // Issue must still be created even though AI filter threw
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/issues'),
