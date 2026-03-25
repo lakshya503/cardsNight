@@ -1,8 +1,9 @@
 // src/components/FeedbackWidget.tsx
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { submitFeedback } from '@/app/actions/submitFeedback'
+import { createClient } from '@/lib/supabase/client'
 
 type FeedbackType = 'bug' | 'suggestion'
 
@@ -16,14 +17,25 @@ export function FeedbackWidget() {
   const [type, setType] = useState<FeedbackType>('bug')
   const [text, setText] = useState('')
   const [screenshots, setScreenshots] = useState<Screenshot[]>([])
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error' | 'rate_limited'>('idle')
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error' | 'rate_limited' | 'unauthenticated' | 'file_too_large'>('idle')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data }) => {
+      setIsAuthenticated(!!data.session)
+    })
+  }, [])
 
   function close() {
     setOpen(false)
     setType('bug')
     setText('')
-    setScreenshots([])
+    setScreenshots(prev => {
+      prev.forEach(s => URL.revokeObjectURL(s.preview))
+      return []
+    })
     setStatus('idle')
   }
 
@@ -31,6 +43,7 @@ export function FeedbackWidget() {
 
   function addScreenshots(files: File[]) {
     const remaining = 2 - screenshots.length
+    const oversized = files.filter(f => f.size > MAX_FILE_SIZE)
     const valid = files.filter(f => f.size <= MAX_FILE_SIZE)
     const toAdd = valid.slice(0, remaining)
     const newScreenshots = toAdd.map(file => ({
@@ -38,6 +51,11 @@ export function FeedbackWidget() {
       preview: URL.createObjectURL(file),
     }))
     setScreenshots(prev => [...prev, ...newScreenshots])
+    if (oversized.length > 0) {
+      setStatus('file_too_large')
+    } else {
+      setStatus(prev => prev === 'file_too_large' ? 'idle' : prev)
+    }
   }
 
   function removeScreenshot(index: number) {
@@ -64,6 +82,8 @@ export function FeedbackWidget() {
       setStatus('success')
     } else if (result.error === 'rate_limited') {
       setStatus('rate_limited')
+    } else if (result.error === 'unauthenticated') {
+      setStatus('unauthenticated')
     } else {
       setStatus('error')
     }
@@ -71,7 +91,8 @@ export function FeedbackWidget() {
 
   return (
     <>
-      {/* Floating trigger */}
+      {/* Floating trigger — only shown when authenticated */}
+      {isAuthenticated && (
       <button
         data-testid="feedback-trigger"
         onClick={() => setOpen(true)}
@@ -87,6 +108,7 @@ export function FeedbackWidget() {
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       </button>
+      )}
 
       {/* Modal backdrop + panel */}
       {open && (
@@ -205,10 +227,14 @@ export function FeedbackWidget() {
                 </div>
 
                 {/* Error states */}
-                {(status === 'error' || status === 'rate_limited') && (
+                {(status === 'error' || status === 'rate_limited' || status === 'unauthenticated' || status === 'file_too_large') && (
                   <p data-testid="feedback-error" className="text-xs" style={{ color: 'var(--color-error)' }}>
                     {status === 'rate_limited'
                       ? "You've sent a lot of feedback recently — try again tomorrow."
+                      : status === 'unauthenticated'
+                      ? 'Please sign in to send feedback.'
+                      : status === 'file_too_large'
+                      ? 'One or more files exceed the 2 MB limit and were not attached.'
                       : 'Something went wrong. Please try again.'}
                   </p>
                 )}
