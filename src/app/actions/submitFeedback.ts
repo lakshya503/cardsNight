@@ -136,7 +136,7 @@ export async function submitFeedback(formData: FormData): Promise<SubmitFeedback
       if (!error) {
         const { data } = await admin.storage
           .from('feedback-screenshots')
-          .createSignedUrl(path, 60 * 60 * 24 * 7) // 7 days
+          .createSignedUrl(path, 60 * 60 * 24 * 30) // 30 days
         if (data?.signedUrl) screenshotUrls.push(data.signedUrl)
       } else {
         console.error('[submitFeedback] Screenshot upload failed:', error)
