@@ -65,6 +65,17 @@ export function FeedbackWidget() {
     })
   }
 
+  function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
+    const imageFiles = Array.from(e.clipboardData.items)
+      .filter(item => item.type.startsWith('image/'))
+      .map(item => item.getAsFile())
+      .filter((f): f is File => f !== null)
+    if (imageFiles.length > 0) {
+      e.preventDefault()
+      addScreenshots(imageFiles)
+    }
+  }
+
   async function handleSubmit() {
     setStatus('submitting')
 
@@ -97,16 +108,16 @@ export function FeedbackWidget() {
         data-testid="feedback-trigger"
         onClick={() => setOpen(true)}
         aria-label="Send feedback"
-        className="fixed bottom-5 right-5 z-50 flex items-center justify-center w-11 h-11 rounded-full shadow-lg transition-transform hover:scale-105"
+        className="fixed bottom-5 right-5 z-50 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-transform hover:scale-105 text-sm font-medium"
         style={{
-          backgroundColor: 'var(--color-surface-raised)',
-          border: '1px solid var(--color-border-strong)',
-          color: 'var(--color-text-muted)',
+          backgroundColor: 'var(--color-primary)',
+          color: 'var(--color-text-on-primary)',
         }}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
+        Feedback
       </button>
       )}
 
@@ -120,6 +131,7 @@ export function FeedbackWidget() {
           <div
             data-testid="feedback-modal"
             className="w-full sm:w-96 rounded-xl p-5 space-y-4 shadow-lg"
+            onPaste={handlePaste}
             style={{
               backgroundColor: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
@@ -204,7 +216,7 @@ export function FeedbackWidget() {
                         className="text-xs"
                         style={{ color: 'var(--color-text-muted)' }}
                       >
-                        + Attach screenshot (optional, up to 2)
+                        + Attach or paste screenshot (⌘V, up to 2)
                       </button>
                     </>
                   )}
