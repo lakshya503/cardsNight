@@ -122,7 +122,9 @@ export function TrickPanel({ gameId, hand, trickCards, isMyTurn, onCardPlayed, l
                         'relative w-20 h-28 rounded-xl bg-white flex flex-col p-1.5 select-none transition-opacity',
                         isTrump ? 'ring-4 ring-[var(--color-trump)]' : 'shadow-md',
                         isValid
-                          ? 'hover:ring-2 hover:ring-[var(--color-primary)]'
+                          ? isTrump
+                            ? 'cursor-pointer'
+                            : 'cursor-pointer hover:ring-2 hover:ring-[var(--color-primary)]'
                           : 'opacity-40 cursor-not-allowed',
                         submitting ? 'opacity-50' : '',
                       ].filter(Boolean).join(' ')}
