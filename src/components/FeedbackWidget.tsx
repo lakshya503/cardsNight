@@ -174,6 +174,7 @@ export function FeedbackWidget() {
                   onChange={e => setText(e.target.value)}
                   placeholder={type === 'bug' ? "What's going wrong?" : "What would you improve?"}
                   rows={4}
+                  maxLength={5000}
                   className="w-full resize-none rounded-md px-3 py-2 text-sm outline-none"
                   style={{
                     backgroundColor: 'var(--color-surface-raised)',
@@ -210,7 +211,7 @@ export function FeedbackWidget() {
                   {screenshots.length > 0 && (
                     <div className="flex gap-2 flex-wrap">
                       {screenshots.map((s, i) => (
-                        <div key={i} data-testid={`feedback-screenshot-preview-${i}`} className="relative">
+                        <div key={s.preview} data-testid={`feedback-screenshot-preview-${i}`} className="relative">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={s.preview} alt={`screenshot ${i + 1}`} className="w-16 h-16 rounded object-cover" />
                           <button

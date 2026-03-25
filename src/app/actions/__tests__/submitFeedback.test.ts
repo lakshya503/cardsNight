@@ -21,15 +21,15 @@ vi.mock('resend', () => ({
   })),
 }))
 
-vi.mock('@anthropic-ai/sdk', () => {
-  const create = vi.fn().mockResolvedValue({
-    content: [{ type: 'text', text: 'valid' }],
-  })
-  function MockAnthropic() {
-    return { messages: { create } }
-  }
-  return { default: MockAnthropic }
-})
+const mockAnthropicCreate = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ content: [{ type: 'text', text: 'valid' }] })
+)
+
+vi.mock('@anthropic-ai/sdk', () => ({
+  default: function MockAnthropic() {
+    return { messages: { create: mockAnthropicCreate } }
+  },
+}))
 
 import { submitFeedback } from '../submitFeedback'
 import { createClient } from '@/lib/supabase/server'
@@ -102,6 +102,21 @@ describe('filterWithAI', () => {
 
     const result = await filterWithAI('asdfghjkl qwerty 123', mockClient as never)
     expect(result).toBe('garbage')
+  })
+
+  it('returns "valid" when API returns unexpected content shape', async () => {
+    const mockCreate = vi.fn().mockResolvedValue({ content: [] })
+    const mockClient = { messages: { create: mockCreate } }
+
+    const result = await filterWithAI('some text', mockClient as never)
+    expect(result).toBe('valid')
+  })
+
+  it('propagates error when API call times out or throws', async () => {
+    const mockCreate = vi.fn().mockRejectedValue(new DOMException('The operation was aborted', 'AbortError'))
+    const mockClient = { messages: { create: mockCreate } }
+
+    await expect(filterWithAI('some text', mockClient as never)).rejects.toThrow('aborted')
   })
 })
 
@@ -260,6 +275,31 @@ describe('submitFeedback', () => {
     const result = await submitFeedback(formData)
     expect(result).toEqual({ error: 'server_error' })
     // Rate limit insert should still have been called before the GitHub failure
+    expect(mockAdmin.from).toHaveBeenCalledWith('feedback_submissions')
+  })
+
+  it('returns success but skips GitHub issue for garbage submissions, rate limit still recorded', async () => {
+    const mockAdmin = makeMockAdmin()
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: 'user-1', email: 'user@example.com' } },
+        }),
+      },
+    } as never)
+    vi.mocked(createAdminClient).mockReturnValue(mockAdmin as never)
+    mockAnthropicCreate.mockResolvedValueOnce({ content: [{ type: 'text', text: 'garbage' }] })
+
+    const formData = new FormData()
+    formData.set('text', 'asdfghjkl qwerty')
+    formData.set('type', 'bug')
+    formData.set('pageUrl', '/')
+    formData.set('userAgent', 'ua')
+    formData.set('screenSize', '1280x800')
+
+    const result = await submitFeedback(formData)
+    expect(result).toEqual({ success: true })
+    expect(global.fetch).not.toHaveBeenCalled()
     expect(mockAdmin.from).toHaveBeenCalledWith('feedback_submissions')
   })
 

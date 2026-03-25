@@ -58,7 +58,9 @@ export async function filterWithAI(
     },
     { signal: AbortSignal.timeout(10_000) }
   )
-  const verdict = (response.content[0] as { text: string }).text.trim().toLowerCase()
+  const firstContent = response.content[0]
+  if (!firstContent || firstContent.type !== 'text') return 'valid'
+  const verdict = (firstContent as { type: 'text'; text: string }).text.trim().toLowerCase()
   return verdict === 'garbage' ? 'garbage' : 'valid'
 }
 
@@ -119,7 +121,11 @@ export async function submitFeedback(formData: FormData): Promise<SubmitFeedback
   if (rateLimited) return { error: 'rate_limited' }
 
   try {
-    // 5. Upload screenshots — bucket is private; generate 7-day signed URLs for GitHub embeds
+    // 5. Record submission — before any external work so all valid attempts count,
+    //    including garbage-filtered submissions and downstream failures
+    await admin.from('feedback_submissions').insert({ user_id: user.id })
+
+    // 6. Upload screenshots — bucket is private; generate 7-day signed URLs for GitHub embeds
     const screenshotUrls: string[] = []
     for (const file of screenshotFiles) {
       const ext = file.name.split('.').pop() ?? 'png'
@@ -137,17 +143,12 @@ export async function submitFeedback(formData: FormData): Promise<SubmitFeedback
       }
     }
 
-    // 6. AI filter
+    // 7. AI filter
     const verdict = await filterWithAI(text)
     if (verdict === 'garbage') {
       // Silently discard — don't signal to the user
       return { success: true }
     }
-
-    // 7. Record submission for rate limiting — before GitHub call so failures still count
-    await admin
-      .from('feedback_submissions')
-      .insert({ user_id: user.id })
 
     // 8. Create GitHub issue
     const label = type === 'bug' ? 'customer-reported-issue' : 'customer-suggestion'
@@ -179,10 +180,10 @@ export async function submitFeedback(formData: FormData): Promise<SubmitFeedback
 
     // 9. Send confirmation email — non-fatal; email failure must not undo a successfully created issue
     try {
-      if (user.email) {
+      if (user.email && process.env.RESEND_FROM_EMAIL) {
         const resend = new Resend(process.env.RESEND_API_KEY)
         await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL!,
+          from: process.env.RESEND_FROM_EMAIL,
           to: user.email,
           subject: 'We got your feedback — cardsNight',
           text: `Hi,\n\nThanks for reaching out! We've logged your ${type === 'bug' ? 'bug report' : 'suggestion'} and will look into it.\n\nThanks,\nThe cardsNight team`,
