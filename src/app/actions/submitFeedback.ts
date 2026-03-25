@@ -11,7 +11,7 @@ const MAX_SCREENSHOTS = 2
 const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 // 2MB
 const RATE_LIMIT = 5
 const RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000
-const GITHUB_REPO = 'lakshya503/cardsNight'
+const GITHUB_REPO = process.env.GITHUB_REPO ?? 'lakshya503/cardsNight'
 
 // ── Pure helpers (exported for testing) ──────────────────────────────────────
 
@@ -19,8 +19,9 @@ export function validateSubmission(
   text: string,
   _type: 'bug' | 'suggestion',
   screenshots: File[]
-): 'text_required' | 'too_many_screenshots' | 'file_too_large' | null {
+): 'text_required' | 'text_too_long' | 'too_many_screenshots' | 'file_too_large' | null {
   if (!text.trim()) return 'text_required'
+  if (text.length > 5000) return 'text_too_long'
   if (screenshots.length > MAX_SCREENSHOTS) return 'too_many_screenshots'
   if (screenshots.some(f => f.size > MAX_FILE_SIZE_BYTES)) return 'file_too_large'
   return null
@@ -40,20 +41,22 @@ export async function isRateLimited(
   return (count ?? 0) >= RATE_LIMIT
 }
 
-// Vitest v4 does not support arrow-function mockImplementation for constructors.
-// Calling through a typed cast avoids `new` so the mock's return value is used directly.
-type AnthropicFactory = (opts: { apiKey: string | undefined }) => InstanceType<typeof Anthropic>
-
-export async function filterWithAI(text: string): Promise<'valid' | 'garbage'> {
-  const client = (Anthropic as unknown as AnthropicFactory)({ apiKey: process.env.ANTHROPIC_API_KEY })
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 10,
-    messages: [{
-      role: 'user',
-      content: `Is this user feedback meaningful? Reply with only "valid" or "garbage".\nGarbage = nonsensical, offensive, or empty content. Valid = any genuine intent.\n\nFeedback: ${text}`,
-    }],
-  })
+export async function filterWithAI(
+  text: string,
+  client?: Pick<InstanceType<typeof Anthropic>, 'messages'>
+): Promise<'valid' | 'garbage'> {
+  const ai = client ?? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const response = await ai.messages.create(
+    {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 10,
+      messages: [{
+        role: 'user',
+        content: `Is this user feedback meaningful? Reply with only "valid" or "garbage".\nGarbage = nonsensical, offensive, or empty content. Valid = any genuine intent.\n\nFeedback: ${text}`,
+      }],
+    },
+    { signal: AbortSignal.timeout(10_000) }
+  )
   const verdict = (response.content[0] as { text: string }).text.trim().toLowerCase()
   return verdict === 'garbage' ? 'garbage' : 'valid'
 }
@@ -79,7 +82,9 @@ export function buildIssueBody(params: {
 
 ---
 
-${text}${screenshotSection}`
+\`\`\`
+${text}
+\`\`\`${screenshotSection}`
 }
 
 // ── Server action ─────────────────────────────────────────────────────────────
@@ -136,7 +141,12 @@ export async function submitFeedback(formData: FormData): Promise<SubmitFeedback
       return { success: true }
     }
 
-    // 7. Create GitHub issue
+    // 7. Record submission for rate limiting — before GitHub call so failures still count
+    await admin
+      .from('feedback_submissions')
+      .insert({ user_id: user.id })
+
+    // 8. Create GitHub issue
     const label = type === 'bug' ? 'customer-reported-issue' : 'customer-suggestion'
     const issueTitle = `[${type === 'bug' ? 'Bug' : 'Suggestion'}] ${text.slice(0, 80)}${text.length > 80 ? '…' : ''}`
     const issueBody = buildIssueBody({
@@ -164,7 +174,7 @@ export async function submitFeedback(formData: FormData): Promise<SubmitFeedback
       return { error: 'server_error' }
     }
 
-    // 8. Send confirmation email — non-fatal; email failure must not undo a successfully created issue
+    // 9. Send confirmation email — non-fatal; email failure must not undo a successfully created issue
     try {
       const resend = new Resend(process.env.RESEND_API_KEY)
       await resend.emails.send({
@@ -176,11 +186,6 @@ export async function submitFeedback(formData: FormData): Promise<SubmitFeedback
     } catch (emailErr) {
       console.error('[submitFeedback] Confirmation email failed (non-fatal):', emailErr)
     }
-
-    // 9. Record submission for rate limiting (only after confirmed success)
-    await admin
-      .from('feedback_submissions')
-      .insert({ user_id: user.id })
 
     return { success: true }
   } catch (err) {

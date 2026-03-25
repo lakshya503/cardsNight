@@ -1,18 +1,11 @@
 // src/app/actions/__tests__/submitFeedback.test.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   isRateLimited,
   filterWithAI,
   buildIssueBody,
   validateSubmission,
 } from '../submitFeedback'
-
-// vi.mock calls are hoisted by Vitest — must be at the top level, not inside beforeEach
-vi.mock('@anthropic-ai/sdk', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    messages: { create: vi.fn() },
-  })),
-}))
 
 // ── validateSubmission ────────────────────────────────────────────────────────
 
@@ -30,6 +23,15 @@ describe('validateSubmission', () => {
     expect(validateSubmission('valid text', 'bug', files)).toBe('too_many_screenshots')
   })
 
+  it('returns error when text exceeds 5000 characters', () => {
+    expect(validateSubmission('a'.repeat(5001), 'bug', [])).toBe('text_too_long')
+  })
+
+  it('returns error when a screenshot exceeds 2MB', () => {
+    const bigFile = new File([new ArrayBuffer(3 * 1024 * 1024)], 'big.png', { type: 'image/png' })
+    expect(validateSubmission('valid text', 'bug', [bigFile])).toBe('file_too_large')
+  })
+
   it('returns null when input is valid', () => {
     expect(validateSubmission('Something broke', 'bug', [])).toBeNull()
   })
@@ -43,33 +45,30 @@ describe('validateSubmission', () => {
 // ── filterWithAI ──────────────────────────────────────────────────────────────
 
 describe('filterWithAI', () => {
-  // The top-level vi.mock('@anthropic-ai/sdk') is already hoisted — use vi.mocked() to configure per-test
+  it('returns "valid" for meaningful feedback and calls correct model', async () => {
+    const mockCreate = vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: 'valid' }],
+    })
+    const mockClient = { messages: { create: mockCreate } }
 
-  it('returns "valid" for meaningful feedback', async () => {
-    const { default: Anthropic } = await import('@anthropic-ai/sdk')
-    vi.mocked(Anthropic).mockImplementation(() => ({
-      messages: {
-        create: vi.fn().mockResolvedValue({
-          content: [{ type: 'text', text: 'valid' }],
-        }),
-      },
-    } as never))
+    const result = await filterWithAI('The scoreboard does not update after round 2', mockClient as never)
 
-    const result = await filterWithAI('The scoreboard does not update after round 2')
     expect(result).toBe('valid')
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
+      model: 'claude-haiku-4-5-20251001',
+      messages: expect.arrayContaining([
+        expect.objectContaining({ content: expect.stringContaining('The scoreboard does not update after round 2') }),
+      ]),
+    }), expect.anything())
   })
 
   it('returns "garbage" for nonsensical input', async () => {
-    const { default: Anthropic } = await import('@anthropic-ai/sdk')
-    vi.mocked(Anthropic).mockImplementation(() => ({
-      messages: {
-        create: vi.fn().mockResolvedValue({
-          content: [{ type: 'text', text: 'garbage' }],
-        }),
-      },
-    } as never))
+    const mockCreate = vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: 'garbage' }],
+    })
+    const mockClient = { messages: { create: mockCreate } }
 
-    const result = await filterWithAI('asdfghjkl qwerty 123')
+    const result = await filterWithAI('asdfghjkl qwerty 123', mockClient as never)
     expect(result).toBe('garbage')
   })
 })
