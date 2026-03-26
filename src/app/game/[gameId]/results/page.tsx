@@ -7,6 +7,21 @@ interface PageProps {
   params: Promise<{ gameId: string }>
 }
 
+function ErrorPage({ heading, body }: { heading: string; body: string }) {
+  return (
+    <main
+      className="min-h-screen flex items-center justify-center p-6"
+      style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text)' }}
+    >
+      <div className="text-center space-y-3">
+        <p className="text-lg font-semibold">{heading}</p>
+        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{body}</p>
+        <a href="/" className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>Back to home</a>
+      </div>
+    </main>
+  )
+}
+
 export default async function ResultsPage({ params }: PageProps) {
   const { gameId } = await params
   const supabase = await createClient()
@@ -21,17 +36,7 @@ export default async function ResultsPage({ params }: PageProps) {
     .eq('id', gameId)
     .maybeSingle()
 
-  if (!game) {
-    return (
-      <main className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text)' }}>
-        <div className="text-center space-y-3">
-          <p className="text-lg font-semibold">Game not found</p>
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>This game doesn&apos;t exist or has been removed.</p>
-          <a href="/" className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>Back to home</a>
-        </div>
-      </main>
-    )
-  }
+  if (!game) return <ErrorPage heading="Game not found" body="This game doesn't exist or has been removed." />
 
   // Allow active, disconnected, and dropped players to view results.
   // Players who left intentionally (dropped) should still see the outcome.
@@ -43,17 +48,7 @@ export default async function ResultsPage({ params }: PageProps) {
     .in('status', ['active', 'disconnected', 'dropped'])
     .maybeSingle()
 
-  if (!roomPlayer) {
-    return (
-      <main className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text)' }}>
-        <div className="text-center space-y-3">
-          <p className="text-lg font-semibold">Access denied</p>
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>You weren&apos;t part of this game.</p>
-          <a href="/" className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>Back to home</a>
-        </div>
-      </main>
-    )
-  }
+  if (!roomPlayer) return <ErrorPage heading="Access denied" body="You weren't part of this game." />
 
   // Repair pass: if the game is finished, ensure every dropped/disconnected player
   // has a game_results row. Safety net for cases where the explicit leave wasn't
