@@ -68,8 +68,9 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
   // Rollback helper — if any post-claim write fails, revert room to waiting so it
   // can be started again. Only valid while this caller holds the claim (i.e. after
   // claim_room_start returned true and before current_game_id is set).
+  const roomId = room.id
   async function releaseRoom() {
-    await admin.from('rooms').update({ status: 'waiting' }).eq('id', room.id)
+    await admin.from('rooms').update({ status: 'waiting' }).eq('id', roomId)
   }
 
   const playerCount = activePlayers.length
