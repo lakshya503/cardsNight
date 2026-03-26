@@ -11,6 +11,7 @@ import { Scoreboard } from './Scoreboard'
 import { TurnTimer } from './TurnTimer'
 import { ReconnectionBanner } from './ReconnectionBanner'
 import type { Card, Suit, CardValue } from '@/lib/game/types'
+import { getRoundOpener } from '@/lib/game/getRoundOpener'
 
 function TrickProgress({ won, bid }: { won: number; bid: number }) {
   if (bid === 0) {
@@ -108,18 +109,6 @@ interface Trick {
 interface RoundScore {
   player_id: string
   score: number
-}
-
-/** Returns the opener's display name when it can be definitively determined,
- *  i.e. before any bid has been placed (current_player_id is still the first bidder). */
-export function getRoundOpener(
-  round: Round | null,
-  bids: Bid[],
-  playerMap: Record<string, Player>,
-): string | null {
-  if (!round || round.status !== 'bidding' || bids.length > 0) return null
-  if (!round.current_player_id) return null
-  return playerMap[round.current_player_id]?.displayName ?? null
 }
 
 interface Props {
@@ -590,6 +579,8 @@ export function GameShell({
     total: cumulativeScores[p.userId] ?? 0,
   }))
 
+  const roundOpener = getRoundOpener(round, bids, playerMap)
+
   function getBidLabel(playerId: string) {
     const bid = bids.find((b) => b.player_id === playerId)
     if (bid !== undefined) return `bid ${bid.amount}`
@@ -604,9 +595,9 @@ export function GameShell({
       <header className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
         <div className="flex flex-col leading-tight">
           <span className="font-semibold">Round {round?.round_number ?? '—'}</span>
-          {getRoundOpener(round, bids, playerMap) && (
+          {roundOpener && (
             <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {getRoundOpener(round, bids, playerMap)} opens bidding
+              {roundOpener} opens bidding
             </span>
           )}
           {roomCode && (

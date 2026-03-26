@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getRoundOpener } from '../GameShell'
+import { getRoundOpener } from '@/lib/game/getRoundOpener'
 
 const playerMap = {
   'player-1': { userId: 'player-1', seatOrder: 0, displayName: 'Alice' },
