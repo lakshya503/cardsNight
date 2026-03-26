@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [M3 — Concurrent Starts Guard + UX Polish] — 2026-03-25
+
+### Fixed
+- Concurrent double-taps on "Start game" no longer create two game rows — the start endpoint now calls a `claim_room_start` Postgres RPC that atomically transitions room status; the second caller gets 422 (#37)
+- Results page `<main>` now uses `var(--color-background)` / `var(--color-text)` tokens instead of hardcoded `bg-slate-900`
+
+### Added
+- Game page loading skeleton renders while server component fetches (#52)
+- Bid submit shows spinner + "Placing bid…" label during network request (#52)
+- Card play error auto-dismisses after 4 seconds (#52)
+- Results page shows readable error UI for unknown game IDs or access-denied instead of silent redirect (#52)
+- Profile page at `/profile` with win rate, game count, and full game history (#50)
+
+---
+
 ## [M3 — Reconnect, Scoring, and How to Play] — 2026-03-25
 
 ### Added
