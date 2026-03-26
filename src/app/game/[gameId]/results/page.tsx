@@ -21,7 +21,17 @@ export default async function ResultsPage({ params }: PageProps) {
     .eq('id', gameId)
     .maybeSingle()
 
-  if (!game) redirect('/')
+  if (!game) {
+    return (
+      <main className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text)' }}>
+        <div className="text-center space-y-3">
+          <p className="text-lg font-semibold">Game not found</p>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>This game doesn&apos;t exist or has been removed.</p>
+          <a href="/" className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>Back to home</a>
+        </div>
+      </main>
+    )
+  }
 
   // Allow active, disconnected, and dropped players to view results.
   // Players who left intentionally (dropped) should still see the outcome.
@@ -33,7 +43,17 @@ export default async function ResultsPage({ params }: PageProps) {
     .in('status', ['active', 'disconnected', 'dropped'])
     .maybeSingle()
 
-  if (!roomPlayer) redirect('/')
+  if (!roomPlayer) {
+    return (
+      <main className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text)' }}>
+        <div className="text-center space-y-3">
+          <p className="text-lg font-semibold">Access denied</p>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>You weren&apos;t part of this game.</p>
+          <a href="/" className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>Back to home</a>
+        </div>
+      </main>
+    )
+  }
 
   // Repair pass: if the game is finished, ensure every dropped/disconnected player
   // has a game_results row. Safety net for cases where the explicit leave wasn't
@@ -101,7 +121,7 @@ export default async function ResultsPage({ params }: PageProps) {
   }))
 
   return (
-    <main className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6">
+    <main className="min-h-screen flex flex-col items-center justify-center p-6" style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text)' }}>
       <ResultsPanel
         results={normalised}
         currentUserId={user.id}
