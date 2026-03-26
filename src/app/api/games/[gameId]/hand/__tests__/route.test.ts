@@ -35,6 +35,7 @@ function makeAdminMock({
   const rpChain = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
     maybeSingle: rpMaybeSingle,
   }
 

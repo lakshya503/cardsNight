@@ -32,7 +32,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     .select('id')
     .eq('room_id', game.room_id)
     .eq('user_id', user.id)
-    .eq('status', 'active')
+    .in('status', ['active', 'disconnected'])
     .maybeSingle()
 
   if (!roomPlayer) {

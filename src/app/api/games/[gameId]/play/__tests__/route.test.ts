@@ -71,17 +71,17 @@ function makeAdminMock({
   const gameEq = vi.fn().mockReturnValue({ maybeSingle: gameMaybeSingle })
   const gameSelect = vi.fn().mockReturnValue({ eq: gameEq })
 
-  // room_players membership
+  // room_players membership: .select().eq().eq().in().maybeSingle()
   const rpMemberMaybeSingle = vi.fn().mockResolvedValue({ data: roomPlayer })
-  const rpMemberEq3 = vi.fn().mockReturnValue({ maybeSingle: rpMemberMaybeSingle })
-  const rpMemberEq2 = vi.fn().mockReturnValue({ eq: rpMemberEq3 })
+  const rpMemberIn = vi.fn().mockReturnValue({ maybeSingle: rpMemberMaybeSingle })
+  const rpMemberEq2 = vi.fn().mockReturnValue({ in: rpMemberIn })
   const rpMemberEq1 = vi.fn().mockReturnValue({ eq: rpMemberEq2 })
   const rpMemberSelect = vi.fn().mockReturnValue({ eq: rpMemberEq1 })
 
-  // room_players seat list
+  // room_players seat list: .select().eq().in().order()
   const rpListOrder = vi.fn().mockResolvedValue({ data: players })
-  const rpListEq2 = vi.fn().mockReturnValue({ order: rpListOrder })
-  const rpListEq1 = vi.fn().mockReturnValue({ eq: rpListEq2 })
+  const rpListIn = vi.fn().mockReturnValue({ order: rpListOrder })
+  const rpListEq1 = vi.fn().mockReturnValue({ in: rpListIn })
   const rpListSelect = vi.fn().mockReturnValue({ eq: rpListEq1 })
 
   // room_players UPDATE (for advancing turn)
