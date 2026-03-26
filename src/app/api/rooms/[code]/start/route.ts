@@ -40,10 +40,6 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Only the host can start the game' }, { status: 403 })
   }
 
-  if (room.status !== 'waiting') {
-    return NextResponse.json({ error: 'Game already started' }, { status: 422 })
-  }
-
   // Fetch active players
   const { data: activePlayers } = await admin
     .from('room_players')
@@ -56,6 +52,17 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
       { error: `Need at least ${MIN_PLAYERS} players to start` },
       { status: 422 }
     )
+  }
+
+  // Atomic claim — prevents concurrent double-starts.
+  // Returns false if another caller already transitioned the room to in_progress.
+  const { data: claimed, error: claimError } = await admin.rpc('claim_room_start', { p_room_id: room.id })
+  if (claimError) {
+    console.error('[start] claim_room_start RPC error:', claimError)
+    return NextResponse.json({ error: 'Failed to start game' }, { status: 500 })
+  }
+  if (!claimed) {
+    return NextResponse.json({ error: 'Game already started' }, { status: 422 })
   }
 
   const playerCount = activePlayers.length
@@ -124,9 +131,10 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
   }
 
   // Update room — triggers WaitingRoom Realtime redirect for all players
+  // status was already set to 'in_progress' by claim_room_start RPC
   const { error: roomUpdateError } = await admin
     .from('rooms')
-    .update({ status: 'in_progress', current_game_id: game.id })
+    .update({ current_game_id: game.id })
     .eq('id', room.id)
 
   if (roomUpdateError) {

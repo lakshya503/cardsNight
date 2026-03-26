@@ -42,6 +42,7 @@ function makeAdminMock({
   roundData = { id: 'round-id' } as { id: string } | null,
   roundError = null as unknown,
   handsError = null as unknown,
+  rpcResult = true as boolean,
 } = {}) {
   // room_players SELECT: .select().eq().eq() → resolves
   const rpSelectEq2 = vi.fn().mockResolvedValue({ data: activePlayers })
@@ -67,6 +68,8 @@ function makeAdminMock({
   const roomsUpdateEq = vi.fn().mockResolvedValue({})
   const roomsUpdate = vi.fn().mockReturnValue({ eq: roomsUpdateEq })
 
+  const rpcMock = vi.fn().mockResolvedValue({ data: rpcResult, error: null })
+
   const fromMap: Record<string, unknown> = {
     room_players: { select: rpSelect, update: rpUpdate },
     games: { insert: gamesInsert },
@@ -75,7 +78,7 @@ function makeAdminMock({
     rooms: { update: roomsUpdate },
   }
 
-  return { from: vi.fn((table: string) => fromMap[table]) }
+  return { from: vi.fn((table: string) => fromMap[table]), rpc: rpcMock }
 }
 
 describe('POST /api/rooms/[code]/start', () => {
@@ -105,15 +108,6 @@ describe('POST /api/rooms/[code]/start', () => {
     vi.mocked(createAdminClient).mockReturnValue(makeAdminMock() as never)
     const res = await POST(makeRequest(), { params: Promise.resolve({ code: 'ABC1234' }) })
     expect(res.status).toBe(403)
-  })
-
-  it('returns 422 if room is not in waiting status', async () => {
-    vi.mocked(createClient).mockResolvedValue(
-      makeServerMock({ room: { id: 'room-id', host_id: 'host-id', status: 'in_progress' } }) as never
-    )
-    vi.mocked(createAdminClient).mockReturnValue(makeAdminMock() as never)
-    const res = await POST(makeRequest(), { params: Promise.resolve({ code: 'ABC1234' }) })
-    expect(res.status).toBe(422)
   })
 
   it('returns 422 if fewer than MIN_PLAYERS are active', async () => {
@@ -166,5 +160,22 @@ describe('POST /api/rooms/[code]/start', () => {
     )
     const res = await POST(makeRequest(), { params: Promise.resolve({ code: 'ABC1234' }) })
     expect(res.status).toBe(500)
+  })
+
+  it('returns 422 when claim_room_start RPC returns false (concurrent start)', async () => {
+    vi.mocked(createClient).mockResolvedValue(makeServerMock() as never)
+    vi.mocked(createAdminClient).mockReturnValue(makeAdminMock({ rpcResult: false }) as never)
+    const res = await POST(makeRequest(), { params: Promise.resolve({ code: 'ABC1234' }) })
+    expect(res.status).toBe(422)
+    const json = await res.json()
+    expect(json.error).toMatch(/already started/i)
+  })
+
+  it('calls claim_room_start with the room id on a valid start', async () => {
+    const adminMock = makeAdminMock()
+    vi.mocked(createClient).mockResolvedValue(makeServerMock() as never)
+    vi.mocked(createAdminClient).mockReturnValue(adminMock as never)
+    await POST(makeRequest(), { params: Promise.resolve({ code: 'ABC1234' }) })
+    expect(adminMock.rpc).toHaveBeenCalledWith('claim_room_start', { p_room_id: 'room-id' })
   })
 })
