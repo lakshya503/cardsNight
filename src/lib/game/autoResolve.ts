@@ -304,18 +304,22 @@ export async function autoResolvePlay(
 
   const roundScores = scoreRound(bidsRecord, tricksWonRecord)
 
-  // Insert round_scores for non-dropped players only
-  // (disconnected-but-not-dropped players still earn scores)
+  // Insert round_scores for non-dropped players only.
+  // Disconnected players (within the 60s window) get score=0 — if you are not
+  // connected when the round ends you do not earn points for that round.
   const { error: rsError } = await admin.from('round_scores').insert(
     Object.entries(roundScores)
       .filter(([playerId]) => players.some((p) => p.user_id === playerId && p.status !== 'dropped'))
-      .map(([playerId, score]) => ({
-        round_id: round.id,
-        player_id: playerId,
-        score,
-        bid: bidsRecord[playerId] ?? 0,
-        tricks_won: tricksWonRecord[playerId] ?? 0,
-      }))
+      .map(([playerId, score]) => {
+        const playerStatus = players.find((p) => p.user_id === playerId)?.status
+        return {
+          round_id: round.id,
+          player_id: playerId,
+          score: playerStatus === 'disconnected' ? 0 : score,
+          bid: bidsRecord[playerId] ?? 0,
+          tricks_won: tricksWonRecord[playerId] ?? 0,
+        }
+      })
   )
 
   if (rsError) {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { BiddingPanel } from './BiddingPanel'
+import { HowToPlayModal } from '@/components/HowToPlayModal'
 import { TrickPanel } from './TrickPanel'
 import { Scoreboard } from './Scoreboard'
 import { TurnTimer } from './TurnTimer'
@@ -122,6 +123,7 @@ interface Props {
   players: Player[]
   turnTimerSeconds: number | null
   roomCode: string
+  gameType: string
   initialDroppedPlayers: string[]
 }
 
@@ -138,9 +140,11 @@ export function GameShell({
   players,
   turnTimerSeconds,
   roomCode,
+  gameType,
   initialDroppedPlayers,
 }: Props) {
   const router = useRouter()
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false)
 
   const [round, setRound] = useState<Round | null>(initialRound)
   const [bids, setBids] = useState<Bid[]>(initialBids)
@@ -598,6 +602,14 @@ export function GameShell({
           <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
             {round ? `${round.hand_size} card${round.hand_size !== 1 ? 's' : ''} this round` : ''}
           </span>
+          <button
+            onClick={() => setHowToPlayOpen(true)}
+            className="text-xs px-2 py-2"
+            style={{ color: 'var(--color-text-muted)' }}
+            aria-label="How to play"
+          >
+            How to play?
+          </button>
           {leavePending ? (
             <div className="flex items-center gap-2">
               <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Leave game?</span>
@@ -950,6 +962,10 @@ export function GameShell({
             </div>
           </div>
         </div>
+      )}
+
+      {howToPlayOpen && (
+        <HowToPlayModal gameType={gameType} onClose={() => setHowToPlayOpen(false)} />
       )}
     </main>
   )
