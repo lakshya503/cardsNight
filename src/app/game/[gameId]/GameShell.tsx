@@ -243,7 +243,8 @@ export function GameShell({
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` },
         (payload) => {
-          const updated = payload.new as Round
+          const raw = payload.new as Omit<Round, 'status'> & { status: string }
+          const updated: Round = { ...raw, status: raw.status as RoundStatus }
           rt('rounds UPDATE', { id: updated.id, status: updated.status, currentRoundId: roundRef.current?.id })
           if (updated.id !== roundRef.current?.id) {
             rt('rounds UPDATE → new round, resetting per-round state')

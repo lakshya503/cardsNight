@@ -33,6 +33,11 @@ describe('getRoundOpener', () => {
     expect(getRoundOpener(playingRound, [], playerMap)).toBeNull()
   })
 
+  it('returns null when round status is complete', () => {
+    const completeRound = { ...biddingRound, status: 'complete' as RoundStatus }
+    expect(getRoundOpener(completeRound, [], playerMap)).toBeNull()
+  })
+
   it('returns null when round is null', () => {
     expect(getRoundOpener(null, [], playerMap)).toBeNull()
   })
