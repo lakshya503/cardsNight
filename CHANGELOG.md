@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [M3 — Reconnect, Scoring, and How to Play] — 2026-03-25
+
+### Added
+- "How to play?" button in the game header opens a game-type aware modal with Judgement rules; adding a second game requires only a new rules component and one switch case (`HowToPlayModal`, `JudgementRules`)
+- `--color-overlay` design token for modal backdrop opacity
+
+### Fixed
+- Players who lose connection mid-game and rejoin via room code are now redirected straight back into the game instead of hitting a "game already started" wall
+- Disconnected players (within the 60s reconnection window) are scored normally for the round — their auto-played turns count; zero-score penalty only applies to fully dropped players
+- Dropped players attempting to rejoin now see "You were dropped from this game" instead of a generic "already in this room" error
+- Players rejoining a finished game see "This game has already finished" instead of a generic error
+
+---
+
 ## [M3 — Bug Fixes from Customer Feedback] — 2026-03-25
 
 ### Fixed
