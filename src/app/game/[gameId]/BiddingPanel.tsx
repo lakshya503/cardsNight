@@ -58,10 +58,12 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
       if (!res.ok) {
         const data = await res.json()
         setError(data.error ?? 'Failed to place bid')
+        setSubmitting(false)
       }
+      // On success: stay submitting=true so buttons stay disabled until
+      // the Realtime game-state update arrives and unmounts this panel.
     } catch {
       setError('Network error — please try again')
-    } finally {
       setSubmitting(false)
     }
   }

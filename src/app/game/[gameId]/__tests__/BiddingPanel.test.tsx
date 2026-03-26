@@ -21,4 +21,21 @@ describe('BiddingPanel', () => {
     expect(screen.getByTestId('bid-submitting')).toBeInTheDocument()
     expect(screen.getByText('Placing bid…')).toBeInTheDocument()
   })
+
+  it('keeps the spinner visible after a successful bid (prevents double-tap before Realtime unmounts)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 200 }))
+    render(<BiddingPanel {...defaultProps} />)
+    await userEvent.click(screen.getByLabelText('Bid 0'))
+    expect(screen.getByTestId('bid-submitting')).toBeInTheDocument()
+  })
+
+  it('clears the spinner after a failed bid so the player can retry', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'Invalid bid' }), { status: 422 })
+    )
+    render(<BiddingPanel {...defaultProps} />)
+    await userEvent.click(screen.getByLabelText('Bid 0'))
+    expect(screen.queryByTestId('bid-submitting')).not.toBeInTheDocument()
+    expect(screen.getByText('Invalid bid')).toBeInTheDocument()
+  })
 })
