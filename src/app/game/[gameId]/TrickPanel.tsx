@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { validatePlay } from '@/lib/game/gameRules'
 import type { Card, Suit } from '@/lib/game/types'
@@ -43,6 +43,12 @@ const SUIT_COLOR: Record<string, string> = {
 export function TrickPanel({ gameId, hand, trickCards, isMyTurn, onCardPlayed, ledSuit, trumpSuit, handOnly = false }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!error) return
+    const id = setTimeout(() => setError(null), 4000)
+    return () => clearTimeout(id)
+  }, [error])
 
   async function playCard(card: Card) {
     setSubmitting(true)
