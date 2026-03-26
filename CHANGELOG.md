@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [M3 — Game Header Polish] — 2026-03-25
+
+### Added
+- Game header now shows "{Name} opens bidding" at the start of each bidding phase; disappears once the first bid is placed
+
+### Changed
+- Removed "N cards this round" label from game header — card count is visible from the hand itself
+- How to Play button now has a surface background and border, making it more visually prominent
+
+### Fixed
+- `Round.status` typed as `RoundStatus` union throughout (was `string`); both SSR and realtime paths now narrow the DB wire value correctly
+
+---
+
 ## [M3 — Concurrent Starts Guard + UX Polish] — 2026-03-25
 
 ### Fixed
