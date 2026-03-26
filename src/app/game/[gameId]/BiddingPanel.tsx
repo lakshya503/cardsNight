@@ -106,6 +106,23 @@ export function BiddingPanel({ gameId, round, existingBids, playerCount }: Props
         </p>
       )}
 
+      {submitting && (
+        <div data-testid="bid-submitting" className="flex items-center gap-2 mt-2">
+          <svg
+            className="animate-spin h-4 w-4"
+            style={{ color: 'var(--color-text-muted)' }}
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+          <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Placing bid…</span>
+        </div>
+      )}
+
       {error && <p className="mt-2 text-sm" style={{ color: 'var(--color-error)' }}>{error}</p>}
     </div>
   )
