@@ -10,7 +10,8 @@ import { TrickPanel } from './TrickPanel'
 import { Scoreboard } from './Scoreboard'
 import { TurnTimer } from './TurnTimer'
 import { ReconnectionBanner } from './ReconnectionBanner'
-import type { Card, Suit, CardValue } from '@/lib/game/types'
+import type { Card, Suit, CardValue, RoundStatus } from '@/lib/game/types'
+import { getRoundOpener } from '@/lib/game/getRoundOpener'
 
 function TrickProgress({ won, bid }: { won: number; bid: number }) {
   if (bid === 0) {
@@ -80,7 +81,7 @@ interface Round {
   hand_size: number
   trump_suit: string
   trump_card_value: string
-  status: string
+  status: RoundStatus
   current_player_id: string | null
   turn_started_at: string | null
 }
@@ -242,7 +243,8 @@ export function GameShell({
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` },
         (payload) => {
-          const updated = payload.new as Round
+          const raw = payload.new as Omit<Round, 'status'> & { status: string }
+          const updated: Round = { ...raw, status: raw.status as RoundStatus }
           rt('rounds UPDATE', { id: updated.id, status: updated.status, currentRoundId: roundRef.current?.id })
           if (updated.id !== roundRef.current?.id) {
             rt('rounds UPDATE → new round, resetting per-round state')
@@ -578,6 +580,8 @@ export function GameShell({
     total: cumulativeScores[p.userId] ?? 0,
   }))
 
+  const roundOpener = getRoundOpener(round, bids, playerMap)
+
   function getBidLabel(playerId: string) {
     const bid = bids.find((b) => b.player_id === playerId)
     if (bid !== undefined) return `bid ${bid.amount}`
@@ -592,6 +596,11 @@ export function GameShell({
       <header className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
         <div className="flex flex-col leading-tight">
           <span className="font-semibold">Round {round?.round_number ?? '—'}</span>
+          {roundOpener && (
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              {roundOpener} opens bidding
+            </span>
+          )}
           {roomCode && (
             <span className="text-xs font-mono tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
               {roomCode}
@@ -599,17 +608,14 @@ export function GameShell({
           )}
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {round ? `${round.hand_size} card${round.hand_size !== 1 ? 's' : ''} this round` : ''}
-          </span>
           <button
             data-testid="how-to-play-button"
             onClick={() => setHowToPlayOpen(true)}
-            className="text-xs px-2 py-2"
-            style={{ color: 'var(--color-text-muted)' }}
+            className="text-xs px-3 py-1.5 rounded-md font-medium border"
+            style={{ backgroundColor: 'var(--color-surface-raised)', color: 'var(--color-text)', borderColor: 'var(--color-border-strong)' }}
             aria-label="How to play"
           >
-            How to play?
+            How to play
           </button>
           {leavePending ? (
             <div className="flex items-center gap-2">
