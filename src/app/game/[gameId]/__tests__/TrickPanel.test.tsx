@@ -30,19 +30,15 @@ describe('TrickPanel error auto-dismiss', () => {
 
     render(<TrickPanel {...DEFAULT_PROPS} />)
 
-    // fireEvent doesn't use internal timers unlike userEvent
-    fireEvent.click(screen.getByLabelText(/play 3 of hearts/i))
-
-    // Flush all pending microtasks/promises so the async playCard function resolves
+    // Move the click inside act so React state updates are flushed synchronously,
+    // then the trailing async act drains any remaining microtasks/promises.
     await act(async () => {
-      await Promise.resolve()
-      await Promise.resolve()
-      await Promise.resolve()
+      fireEvent.click(screen.getByLabelText(/play 3 of hearts/i))
     })
 
     expect(screen.getByText('Must follow suit')).toBeInTheDocument()
 
-    act(() => { vi.advanceTimersByTime(4000) })
+    await act(async () => { vi.advanceTimersByTime(4000) })
 
     expect(screen.queryByText('Must follow suit')).not.toBeInTheDocument()
   })
