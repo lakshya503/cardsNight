@@ -65,6 +65,13 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Game already started' }, { status: 422 })
   }
 
+  // Rollback helper — if any post-claim write fails, revert room to waiting so it
+  // can be started again. Only valid while this caller holds the claim (i.e. after
+  // claim_room_start returned true and before current_game_id is set).
+  async function releaseRoom() {
+    await admin.from('rooms').update({ status: 'waiting' }).eq('id', room.id)
+  }
+
   const playerCount = activePlayers.length
   const startingHandSize = getStartingHandSize(playerCount)
 
@@ -88,6 +95,7 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
 
   if (gameError || !game) {
     console.error('[start] Game insert error:', gameError)
+    await releaseRoom()
     return NextResponse.json({ error: 'Failed to create game' }, { status: 500 })
   }
 
@@ -113,6 +121,7 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
 
   if (roundError || !round) {
     console.error('[start] Round insert error:', roundError)
+    await releaseRoom()
     return NextResponse.json({ error: 'Failed to create round' }, { status: 500 })
   }
 
@@ -127,6 +136,7 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
 
   if (handsError) {
     console.error('[start] Hands insert error:', handsError)
+    await releaseRoom()
     return NextResponse.json({ error: 'Failed to deal hands' }, { status: 500 })
   }
 
@@ -139,6 +149,9 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
 
   if (roomUpdateError) {
     console.error('[start] Room update error:', roomUpdateError)
+    // Note: game/round/hands rows may exist at this point but the room never
+    // signals players to redirect — reverting status lets the host retry.
+    await releaseRoom()
     return NextResponse.json({ error: 'Failed to start game' }, { status: 500 })
   }
 
