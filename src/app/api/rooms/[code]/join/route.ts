@@ -53,16 +53,20 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   if (existingPlayer) {
-    if (room.status !== 'waiting' && room.current_game_id) {
-      // Returning player — send them straight back into the active game
+    const canRejoin = existingPlayer.status === 'active' || existingPlayer.status === 'disconnected'
+    if (canRejoin && room.status === 'active' && room.current_game_id) {
+      // Returning player mid-game — send them straight back in
       return NextResponse.json(
         { reconnecting: true, gameId: room.current_game_id, code: room.code },
         { status: 200 }
       )
     }
-    // Game not yet started — send them to the waiting room
+    // Dropped from the game, game not yet started, or game already finished
+    const message = existingPlayer.status === 'dropped'
+      ? 'You were dropped from this game and cannot rejoin.'
+      : 'You are already in this room'
     return NextResponse.json(
-      { error: 'You are already in this room', roomId: room.id, code: room.code },
+      { error: message, roomId: room.id, code: room.code },
       { status: 409 }
     )
   }

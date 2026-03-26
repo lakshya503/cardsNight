@@ -184,7 +184,7 @@ describe('POST /api/rooms/[code]/join', () => {
     expect(json).toEqual({ reconnecting: true, gameId: 'game-456', code: 'ABC123X' })
   })
 
-  it('returns 409 for a dropped player even mid-game', async () => {
+  it('returns 409 with a clear message for a dropped player even mid-game', async () => {
     const activeRoom = { ...ROOM, status: 'active', current_game_id: 'game-456' }
     vi.mocked(createClient).mockResolvedValue(makeAuthMock() as never)
     vi.mocked(createAdminClient).mockReturnValue(
@@ -193,7 +193,7 @@ describe('POST /api/rooms/[code]/join', () => {
     const res = await POST(makeRequest(), makeContext())
     expect(res.status).toBe(409)
     const json = await res.json()
-    expect(json.error).toMatch(/already in this room/i)
+    expect(json.error).toMatch(/dropped/i)
   })
 
   it('normalises the room code to uppercase before querying', async () => {

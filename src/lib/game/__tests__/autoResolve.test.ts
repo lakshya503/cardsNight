@@ -597,8 +597,9 @@ describe('autoResolvePlay', () => {
     expect((result as { ok: true; status: string }).status).not.toBe('trick_in_progress')
   })
 
-  it('gives disconnected players score:0, bid:0, tricks_won:0 regardless of actual result', async () => {
-    // player-2 is disconnected — bid 1, won 1 trick → would earn 20 pts, but must be zeroed
+  it('scores disconnected players normally — zero-score penalty only applies to dropped players', async () => {
+    // player-2 is disconnected (still in reconnection window) — bid 1, won 1 trick
+    // they should score normally (20 pts), not be zeroed
     const playersWithDisconnected = [
       { user_id: 'player-1', seat_order: 0, status: 'active' },
       { user_id: 'player-2', seat_order: 1, status: 'disconnected' },
@@ -618,7 +619,7 @@ describe('autoResolvePlay', () => {
         { player_id: 'player-1', amount: 1 },
         { player_id: 'player-2', amount: 1 },
       ],
-      // completedTricks reflects both tricks after auto-play resolves trick-2
+      // both tricks resolved: player-2 won trick-1, player-1 won trick-2
       completedTricks: [{ winner_id: 'player-2' }, { winner_id: 'player-1' }],
     })
     const round = { ...PLAYING_ROUND, hand_size: 2, round_number: 1 }
@@ -628,13 +629,13 @@ describe('autoResolvePlay', () => {
     const rsInsertArg = (admin.rsInsert as ReturnType<typeof vi.fn>).mock.calls[0][0] as Array<{
       player_id: string; score: number; bid: number; tricks_won: number
     }>
-    // disconnected player: all zeroed regardless of actual bid/tricks_won
+    // disconnected player scored normally — bid 1, won 1 → 20 pts
     const p2Row = rsInsertArg.find((r) => r.player_id === 'player-2')
     expect(p2Row).toBeDefined()
-    expect(p2Row?.score).toBe(0)
-    expect(p2Row?.bid).toBe(0)
-    expect(p2Row?.tricks_won).toBe(0)
-    // active player: scored normally (bid 1, won 1 → 20 pts)
+    expect(p2Row?.score).toBe(20)
+    expect(p2Row?.bid).toBe(1)
+    expect(p2Row?.tricks_won).toBe(1)
+    // active player also scored normally
     const p1Row = rsInsertArg.find((r) => r.player_id === 'player-1')
     expect(p1Row).toBeDefined()
     expect(p1Row?.score).toBe(20)
