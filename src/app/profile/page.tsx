@@ -57,6 +57,9 @@ export default async function ProfilePage() {
   }[] = []
 
   if (!isGuest) {
+    // Use explicit FK hints to disambiguate: games→rooms has two FK paths
+    // (games.room_id→rooms.id AND rooms.current_game_id→games.id).
+    // Without hints PostgREST returns HTTP 300 and data is null, causing 0 stats.
     const { data: history, error: historyError } = await admin
       .from('game_results')
       .select('id, placement, result, total_score, created_at, games!game_results_game_id_fkey(finished_at, rooms!games_room_id_fkey(game_type))')
@@ -116,12 +119,13 @@ export default async function ProfilePage() {
           </div>
         )}
 
+        <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-display)' }}>
+          Profile
+        </h1>
+
         {/* Stats strip — hidden for guests */}
         {!isGuest && (
           <section>
-            <h1 className="text-2xl font-bold mb-5" style={{ fontFamily: 'var(--font-display)' }}>
-              Profile
-            </h1>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'Games', value: totalGames },

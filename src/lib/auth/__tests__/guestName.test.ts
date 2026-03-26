@@ -33,4 +33,12 @@ describe('validateGuestName', () => {
   it('returns null for a non-string (null)', () => {
     expect(validateGuestName(null)).toBeNull()
   })
+
+  it('returns null for a name with HTML characters', () => {
+    expect(validateGuestName('<script>')).toBeNull()
+  })
+
+  it('accepts names with accented characters', () => {
+    expect(validateGuestName('André')).toBe('André')
+  })
 })

@@ -18,6 +18,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
   const errorMessage =
     error === 'invalid_name' ? copy.guest.invalidName
+    : error === 'guest_failed' ? copy.guest.guestFailed
     : error ? copy.errors.generic
     : null
 

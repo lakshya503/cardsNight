@@ -21,6 +21,7 @@ export const copy = {
     signInButton:     'Play as Guest',
     profileBanner:    "You're playing as a guest — stats won't be saved after you sign out.",
     invalidName:      'Name must be between 1 and 24 characters.',
+    guestFailed:      'Guest sign-in failed — please try again.',
   },
 
   // ── Home ──────────────────────────────────────────────
