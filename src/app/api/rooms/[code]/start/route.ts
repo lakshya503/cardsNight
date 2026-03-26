@@ -40,10 +40,6 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Only the host can start the game' }, { status: 403 })
   }
 
-  if (room.status !== 'waiting') {
-    return NextResponse.json({ error: 'Game already started' }, { status: 422 })
-  }
-
   // Fetch active players
   const { data: activePlayers } = await admin
     .from('room_players')
@@ -56,6 +52,25 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
       { error: `Need at least ${MIN_PLAYERS} players to start` },
       { status: 422 }
     )
+  }
+
+  // Atomic claim — prevents concurrent double-starts.
+  // Returns false if another caller already transitioned the room to in_progress.
+  const { data: claimed, error: claimError } = await admin.rpc('claim_room_start', { p_room_id: room.id })
+  if (claimError) {
+    console.error('[start] claim_room_start RPC error:', claimError)
+    return NextResponse.json({ error: 'Failed to start game' }, { status: 500 })
+  }
+  if (!claimed) {
+    return NextResponse.json({ error: 'Game already started' }, { status: 422 })
+  }
+
+  // Rollback helper — if any post-claim write fails, revert room to waiting so it
+  // can be started again. Only valid while this caller holds the claim (i.e. after
+  // claim_room_start returned true and before current_game_id is set).
+  const roomId = room.id
+  async function releaseRoom() {
+    await admin.from('rooms').update({ status: 'waiting' }).eq('id', roomId)
   }
 
   const playerCount = activePlayers.length
@@ -81,6 +96,7 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
 
   if (gameError || !game) {
     console.error('[start] Game insert error:', gameError)
+    await releaseRoom()
     return NextResponse.json({ error: 'Failed to create game' }, { status: 500 })
   }
 
@@ -106,6 +122,7 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
 
   if (roundError || !round) {
     console.error('[start] Round insert error:', roundError)
+    await releaseRoom()
     return NextResponse.json({ error: 'Failed to create round' }, { status: 500 })
   }
 
@@ -120,17 +137,22 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
 
   if (handsError) {
     console.error('[start] Hands insert error:', handsError)
+    await releaseRoom()
     return NextResponse.json({ error: 'Failed to deal hands' }, { status: 500 })
   }
 
   // Update room — triggers WaitingRoom Realtime redirect for all players
+  // status was already set to 'in_progress' by claim_room_start RPC
   const { error: roomUpdateError } = await admin
     .from('rooms')
-    .update({ status: 'in_progress', current_game_id: game.id })
+    .update({ current_game_id: game.id })
     .eq('id', room.id)
 
   if (roomUpdateError) {
     console.error('[start] Room update error:', roomUpdateError)
+    // Note: game/round/hands rows may exist at this point but the room never
+    // signals players to redirect — reverting status lets the host retry.
+    await releaseRoom()
     return NextResponse.json({ error: 'Failed to start game' }, { status: 500 })
   }
 
