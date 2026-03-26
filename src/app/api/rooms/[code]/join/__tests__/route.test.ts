@@ -13,6 +13,7 @@ const ROOM = {
   code: 'ABC123X',
   status: 'waiting',
   max_players: 6,
+  current_game_id: null as string | null,
 }
 
 function makeRequest(code = 'ABC123X') {
@@ -38,13 +39,13 @@ function makeAuthMock(user: { id: string } | null = { id: 'user-456' }) {
 function makeAdminMock({
   room = ROOM as typeof ROOM | null,
   roomError = null,
-  existingPlayer = null as { id: string } | null,
+  existingPlayer = null as { id: string; status?: string } | null,
   playerCount = 2,
   insertError = null,
 }: {
   room?: typeof ROOM | null
   roomError?: unknown
-  existingPlayer?: { id: string } | null
+  existingPlayer?: { id: string; status?: string } | null
   playerCount?: number
   insertError?: unknown
 } = {}) {
@@ -157,6 +158,54 @@ describe('POST /api/rooms/[code]/join', () => {
     expect(res.status).toBe(422)
     const json = await res.json()
     expect(json.error).toMatch(/full/i)
+  })
+
+  it('returns 200 with reconnecting:true for an active player mid-game', async () => {
+    const activeRoom = { ...ROOM, status: 'active', current_game_id: 'game-456' }
+    vi.mocked(createClient).mockResolvedValue(makeAuthMock() as never)
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeAdminMock({ room: activeRoom, existingPlayer: { id: 'player-row-1', status: 'active' } }) as never
+    )
+    const res = await POST(makeRequest(), makeContext())
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json).toEqual({ reconnecting: true, gameId: 'game-456', code: 'ABC123X' })
+  })
+
+  it('returns 200 with reconnecting:true for a disconnected player mid-game', async () => {
+    const activeRoom = { ...ROOM, status: 'active', current_game_id: 'game-456' }
+    vi.mocked(createClient).mockResolvedValue(makeAuthMock() as never)
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeAdminMock({ room: activeRoom, existingPlayer: { id: 'player-row-1', status: 'disconnected' } }) as never
+    )
+    const res = await POST(makeRequest(), makeContext())
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json).toEqual({ reconnecting: true, gameId: 'game-456', code: 'ABC123X' })
+  })
+
+  it('returns 409 with a clear message for a dropped player even mid-game', async () => {
+    const activeRoom = { ...ROOM, status: 'active', current_game_id: 'game-456' }
+    vi.mocked(createClient).mockResolvedValue(makeAuthMock() as never)
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeAdminMock({ room: activeRoom, existingPlayer: { id: 'player-row-1', status: 'dropped' } }) as never
+    )
+    const res = await POST(makeRequest(), makeContext())
+    expect(res.status).toBe(409)
+    const json = await res.json()
+    expect(json.error).toMatch(/dropped/i)
+  })
+
+  it('returns 409 with a clear message when the game is already finished', async () => {
+    const finishedRoom = { ...ROOM, status: 'finished', current_game_id: 'game-456' }
+    vi.mocked(createClient).mockResolvedValue(makeAuthMock() as never)
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeAdminMock({ room: finishedRoom, existingPlayer: { id: 'player-row-1', status: 'active' } }) as never
+    )
+    const res = await POST(makeRequest(), makeContext())
+    expect(res.status).toBe(409)
+    const json = await res.json()
+    expect(json.error).toMatch(/finished/i)
   })
 
   it('normalises the room code to uppercase before querying', async () => {

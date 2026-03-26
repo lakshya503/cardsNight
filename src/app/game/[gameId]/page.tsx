@@ -26,12 +26,15 @@ export default async function GamePage({ params }: PageProps) {
   if (!game) redirect('/')
 
   // Verify user is a player in this game
+  // Allow both active and disconnected players — a disconnected player who
+  // navigates back to the game URL (or is redirected via reconnect flow) must
+  // not be bounced; their presence re-joining will flip status back to active.
   const { data: roomPlayer } = await admin
     .from('room_players')
     .select('seat_order')
     .eq('room_id', game.room_id)
     .eq('user_id', user.id)
-    .eq('status', 'active')
+    .in('status', ['active', 'disconnected'])
     .maybeSingle()
 
   if (!roomPlayer) redirect('/')
@@ -39,7 +42,7 @@ export default async function GamePage({ params }: PageProps) {
   // Fetch room settings (for turn timer and room code)
   const { data: room } = await admin
     .from('rooms')
-    .select('turn_timer_seconds, code')
+    .select('turn_timer_seconds, code, game_type')
     .eq('id', game.room_id)
     .maybeSingle()
 
@@ -162,6 +165,7 @@ export default async function GamePage({ params }: PageProps) {
       players={playerList}
       turnTimerSeconds={room?.turn_timer_seconds ?? null}
       roomCode={room?.code ?? ''}
+      gameType={room?.game_type ?? 'judgement'}
       initialDroppedPlayers={initialDroppedPlayers}
     />
   )

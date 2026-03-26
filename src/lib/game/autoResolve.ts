@@ -304,8 +304,10 @@ export async function autoResolvePlay(
 
   const roundScores = scoreRound(bidsRecord, tricksWonRecord)
 
-  // Insert round_scores for non-dropped players only
-  // (disconnected-but-not-dropped players still earn scores)
+  // Insert round_scores for non-dropped players only.
+  // Disconnected players (still within the 60s reconnection window) are scored
+  // normally — they participated in the round and their auto-played cards count.
+  // The zero-score penalty only applies when a player is fully dropped.
   const { error: rsError } = await admin.from('round_scores').insert(
     Object.entries(roundScores)
       .filter(([playerId]) => players.some((p) => p.user_id === playerId && p.status !== 'dropped'))

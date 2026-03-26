@@ -20,7 +20,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   // Fetch room — must exist, not expired, not cancelled
   const { data: room, error: roomError } = await admin
     .from('rooms')
-    .select('id, status, max_players, code')
+    .select('id, status, max_players, code, current_game_id')
     .eq('code', code.toUpperCase())
     .neq('status', 'cancelled')
     .gt('expires_at', new Date().toISOString())
@@ -38,18 +38,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     )
   }
 
-  // Room must be in waiting state
-  if (room.status !== 'waiting') {
-    return NextResponse.json(
-      { error: 'This game has already started' },
-      { status: 422 }
-    )
-  }
-
-  // Check if player is already in the room
+  // Check existing membership BEFORE the status check so that a player who was
+  // already in the room can reconnect mid-game rather than hitting the 422 wall.
   const { data: existingPlayer, error: existingError } = await admin
     .from('room_players')
-    .select('id')
+    .select('id, status')
     .eq('room_id', room.id)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -60,9 +53,32 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   if (existingPlayer) {
+    const canRejoin = existingPlayer.status === 'active' || existingPlayer.status === 'disconnected'
+    if (canRejoin && room.status === 'active' && room.current_game_id) {
+      // Returning player mid-game — send them straight back in
+      return NextResponse.json(
+        { reconnecting: true, gameId: room.current_game_id, code: room.code },
+        { status: 200 }
+      )
+    }
+    // Dropped from the game, game not yet started, or game already finished
+    let message = 'You are already in this room'
+    if (existingPlayer.status === 'dropped') {
+      message = 'You were dropped from this game and cannot rejoin.'
+    } else if (room.status === 'finished') {
+      message = 'This game has already finished.'
+    }
     return NextResponse.json(
-      { error: 'You are already in this room', roomId: room.id, code: room.code },
+      { error: message, roomId: room.id, code: room.code },
       { status: 409 }
+    )
+  }
+
+  // Room must be in waiting state for new players
+  if (room.status !== 'waiting') {
+    return NextResponse.json(
+      { error: 'This game has already started. Next time!' },
+      { status: 422 }
     )
   }
 

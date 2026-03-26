@@ -130,6 +130,7 @@ The game screen is the core of the product. All players see the game state updat
 
 - If a player loses connection, a 60-second reconnection window is displayed to all players
 - If the player reconnects within 60 seconds, the game continues normally from where it left off
+- While disconnected, the player's turns are auto-resolved (lowest valid card / 0 bid); their score for that round is counted normally — they participated
 - If the player does not reconnect within 60 seconds, they are dropped from the game
 - When a player is dropped: the current round is voided and a new round begins without them
 - The dropped player's cumulative score up to that point remains visible on the scoreboard

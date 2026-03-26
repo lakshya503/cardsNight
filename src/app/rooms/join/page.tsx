@@ -62,6 +62,12 @@ export default function JoinRoomPage() {
         return
       }
 
+      if (data.reconnecting && data.gameId) {
+        // Returning mid-game player — send directly to the active game
+        router.push(`/game/${data.gameId}`)
+        return
+      }
+
       router.push(`/room/${data.code}`)
     } catch {
       setError(copy.errors.generic)
