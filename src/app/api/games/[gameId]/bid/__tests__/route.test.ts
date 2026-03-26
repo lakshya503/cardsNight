@@ -183,6 +183,14 @@ describe('POST /api/games/[gameId]/bid', () => {
     expect(res.status).toBe(403)
   })
 
+  it('returns 403 when the player is dropped (dropped status is excluded by .in() filter)', async () => {
+    // The .in(['active','disconnected']) filter means a dropped player resolves to null
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(makeAdminMock({ roomPlayer: null }))
+    const res = await POST(makeRequest(), makeParams())
+    expect(res.status).toBe(403)
+  })
+
   it('returns 422 when there is no active bidding round', async () => {
     ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
     ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(makeAdminMock({ round: null }))

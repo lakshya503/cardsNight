@@ -96,6 +96,14 @@ describe('GET /api/games/[gameId]/hand', () => {
     expect(res.status).toBe(403)
   })
 
+  it('returns 403 when the player is dropped (dropped status is excluded by .in() filter)', async () => {
+    // The .in(['active','disconnected']) filter means a dropped player resolves to null
+    vi.mocked(createClient).mockResolvedValue(makeAuthMock() as never)
+    vi.mocked(createAdminClient).mockReturnValue(makeAdminMock({ roomPlayer: null }) as never)
+    const res = await GET(makeRequest(), makeParams())
+    expect(res.status).toBe(403)
+  })
+
   it('returns empty cards if no active round', async () => {
     vi.mocked(createClient).mockResolvedValue(makeAuthMock() as never)
     vi.mocked(createAdminClient).mockReturnValue(makeAdminMock({ round: null }) as never)

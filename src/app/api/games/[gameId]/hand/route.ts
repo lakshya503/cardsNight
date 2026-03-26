@@ -27,6 +27,8 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Game not found or not in progress' }, { status: 404 })
   }
 
+  // Accept 'disconnected' too — a Presence flicker must not block hand fetches.
+  // Only 'dropped' players (failed the 60s reconnection window) are excluded.
   const { data: roomPlayer } = await admin
     .from('room_players')
     .select('id')
