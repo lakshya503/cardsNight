@@ -48,13 +48,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Game not found or not in progress' }, { status: 404 })
   }
 
-  // Verify player is active in this game's room
+  // Verify player is in this game's room. Accept 'disconnected' too — a player
+  // whose Presence flickered (network hiccup, tab backgrounded) still gets to
+  // submit moves. Only 'dropped' players are fully excluded.
   const { data: roomPlayer } = await admin
     .from('room_players')
     .select('id')
     .eq('room_id', game.room_id)
     .eq('user_id', user.id)
-    .eq('status', 'active')
+    .in('status', ['active', 'disconnected'])
     .maybeSingle()
 
   if (!roomPlayer) {
@@ -79,12 +81,13 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Not your turn' }, { status: 422 })
   }
 
-  // Fetch all active players in seat order
+  // Fetch all non-dropped players in seat order (disconnected players are still
+  // part of the round — their turns are auto-resolved if they don't respond in time)
   const { data: players } = await admin
     .from('room_players')
     .select('user_id, seat_order')
     .eq('room_id', game.room_id)
-    .eq('status', 'active')
+    .in('status', ['active', 'disconnected'])
     .order('seat_order', { ascending: true })
 
   if (!players || players.length === 0) {

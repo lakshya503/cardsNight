@@ -56,17 +56,17 @@ function makeAdminMock({
   const gameEq = vi.fn().mockReturnValue({ maybeSingle: gameMaybeSingle })
   const gameSelect = vi.fn().mockReturnValue({ eq: gameEq })
 
-  // room_players membership: .select().eq().eq().eq().maybeSingle()
+  // room_players membership: .select().eq().eq().in().maybeSingle()
   const rpMemberMaybeSingle = vi.fn().mockResolvedValue({ data: roomPlayer })
-  const rpMemberEq3 = vi.fn().mockReturnValue({ maybeSingle: rpMemberMaybeSingle })
-  const rpMemberEq2 = vi.fn().mockReturnValue({ eq: rpMemberEq3 })
+  const rpMemberIn = vi.fn().mockReturnValue({ maybeSingle: rpMemberMaybeSingle })
+  const rpMemberEq2 = vi.fn().mockReturnValue({ in: rpMemberIn })
   const rpMemberEq1 = vi.fn().mockReturnValue({ eq: rpMemberEq2 })
   const rpMemberSelect = vi.fn().mockReturnValue({ eq: rpMemberEq1 })
 
-  // room_players seat list: .select().eq().eq().order()
+  // room_players seat list: .select().eq().in().order()
   const rpListOrder = vi.fn().mockResolvedValue({ data: players })
-  const rpListEq2 = vi.fn().mockReturnValue({ order: rpListOrder })
-  const rpListEq1 = vi.fn().mockReturnValue({ eq: rpListEq2 })
+  const rpListIn = vi.fn().mockReturnValue({ order: rpListOrder })
+  const rpListEq1 = vi.fn().mockReturnValue({ in: rpListIn })
   const rpListSelect = vi.fn().mockReturnValue({ eq: rpListEq1 })
 
   // room_players UPDATE: .update().eq()
@@ -177,6 +177,14 @@ describe('POST /api/games/[gameId]/bid', () => {
   })
 
   it('returns 403 when user is not a player in the room', async () => {
+    ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
+    ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(makeAdminMock({ roomPlayer: null }))
+    const res = await POST(makeRequest(), makeParams())
+    expect(res.status).toBe(403)
+  })
+
+  it('returns 403 when the player is dropped (dropped status is excluded by .in() filter)', async () => {
+    // The .in(['active','disconnected']) filter means a dropped player resolves to null
     ;(createClient as ReturnType<typeof vi.fn>).mockResolvedValue(makeServerMock())
     ;(createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue(makeAdminMock({ roomPlayer: null }))
     const res = await POST(makeRequest(), makeParams())

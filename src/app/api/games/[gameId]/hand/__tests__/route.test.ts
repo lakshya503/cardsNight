@@ -35,6 +35,7 @@ function makeAdminMock({
   const rpChain = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
     maybeSingle: rpMaybeSingle,
   }
 
@@ -89,6 +90,14 @@ describe('GET /api/games/[gameId]/hand', () => {
   })
 
   it('returns 403 if player is not in the game', async () => {
+    vi.mocked(createClient).mockResolvedValue(makeAuthMock() as never)
+    vi.mocked(createAdminClient).mockReturnValue(makeAdminMock({ roomPlayer: null }) as never)
+    const res = await GET(makeRequest(), makeParams())
+    expect(res.status).toBe(403)
+  })
+
+  it('returns 403 when the player is dropped (dropped status is excluded by .in() filter)', async () => {
+    // The .in(['active','disconnected']) filter means a dropped player resolves to null
     vi.mocked(createClient).mockResolvedValue(makeAuthMock() as never)
     vi.mocked(createAdminClient).mockReturnValue(makeAdminMock({ roomPlayer: null }) as never)
     const res = await GET(makeRequest(), makeParams())
