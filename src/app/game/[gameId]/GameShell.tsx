@@ -165,8 +165,6 @@ export function GameShell({
   const [disconnectedPlayers, setDisconnectedPlayers] = useState<Map<string, string>>(new Map())
   // droppedPlayers: userId set — players who failed to reconnect and were dropped
   const [droppedPlayers, setDroppedPlayers] = useState<Set<string>>(new Set(initialDroppedPlayers))
-  // Captures the first bidder of each round so it stays visible throughout
-  const [roundStarterId, setRoundStarterId] = useState<string | null>(initialRound?.current_player_id ?? null)
 
   const roundRef = useRef<Round | null>(initialRound)
   const currentTrickRef = useRef<Trick | null>(initialCurrentTrick)
@@ -205,12 +203,6 @@ export function GameShell({
     currentTrickRef.current = initialCurrentTrick
   }, [initialRound?.id, initialRound?.current_player_id, initialRound?.status])
 
-  // When a new round starts, capture who opens bidding. Separate from the sync
-  // effect above so it only fires on round change, not on every player/status update.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (initialRound?.current_player_id) setRoundStarterId(initialRound.current_player_id)
-  }, [initialRound?.id])
 
   // useMemo is critical here: playerMap must be a stable reference so it doesn't
   // appear as changed on every render and tear down the Realtime channel.
@@ -601,9 +593,11 @@ export function GameShell({
       <header className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
         <div className="flex flex-col leading-tight">
           <span className="font-semibold">Round {round?.round_number ?? '—'}</span>
-          {roundStarterId && playerMap[roundStarterId] && (
+          {/* Only shown before any bid is placed — at that point current_player_id
+              is definitively the opener. Disappears once bidding is underway. */}
+          {round?.status === 'bidding' && bids.length === 0 && round.current_player_id && playerMap[round.current_player_id] && (
             <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {playerMap[roundStarterId].displayName} opens bidding
+              {playerMap[round.current_player_id].displayName} opens bidding
             </span>
           )}
           {roomCode && (
@@ -616,8 +610,8 @@ export function GameShell({
           <button
             data-testid="how-to-play-button"
             onClick={() => setHowToPlayOpen(true)}
-            className="text-xs px-3 py-1.5 rounded-md font-medium"
-            style={{ backgroundColor: 'var(--color-surface-raised)', color: 'var(--color-text)', border: '1px solid var(--color-border-strong)' }}
+            className="text-xs px-3 py-1.5 rounded-md font-medium border"
+            style={{ backgroundColor: 'var(--color-surface-raised)', color: 'var(--color-text)', borderColor: 'var(--color-border-strong)' }}
             aria-label="How to play"
           >
             How to play
