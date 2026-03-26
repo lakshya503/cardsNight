@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { GameShell } from './GameShell'
 import { getPlayerHand } from '@/lib/game/server'
+import type { RoundStatus } from '@/lib/game/types'
 
 interface PageProps {
   params: Promise<{ gameId: string }>
@@ -155,7 +156,7 @@ export default async function GamePage({ params }: PageProps) {
     <GameShell
       gameId={gameId}
       userId={user.id}
-      initialRound={round ?? null}
+      initialRound={round ? { ...round, status: round.status as RoundStatus } : null}
       initialBids={bids ?? []}
       initialHand={hand}
       initialCurrentTrick={currentTrick}

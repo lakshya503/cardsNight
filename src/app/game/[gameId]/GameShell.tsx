@@ -10,7 +10,7 @@ import { TrickPanel } from './TrickPanel'
 import { Scoreboard } from './Scoreboard'
 import { TurnTimer } from './TurnTimer'
 import { ReconnectionBanner } from './ReconnectionBanner'
-import type { Card, Suit, CardValue } from '@/lib/game/types'
+import type { Card, Suit, CardValue, RoundStatus } from '@/lib/game/types'
 import { getRoundOpener } from '@/lib/game/getRoundOpener'
 
 function TrickProgress({ won, bid }: { won: number; bid: number }) {
@@ -81,7 +81,7 @@ interface Round {
   hand_size: number
   trump_suit: string
   trump_card_value: string
-  status: string
+  status: RoundStatus
   current_player_id: string | null
   turn_started_at: string | null
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { getRoundOpener } from '@/lib/game/getRoundOpener'
+import type { RoundStatus } from '@/lib/game/types'
 
 const playerMap = {
   'player-1': { userId: 'player-1', seatOrder: 0, displayName: 'Alice' },
@@ -12,7 +13,7 @@ const biddingRound = {
   hand_size: 8,
   trump_suit: 'spades',
   trump_card_value: '4',
-  status: 'bidding',
+  status: 'bidding' as RoundStatus,
   current_player_id: 'player-1',
   turn_started_at: null,
 }
@@ -28,7 +29,7 @@ describe('getRoundOpener', () => {
   })
 
   it('returns null when round status is playing', () => {
-    const playingRound = { ...biddingRound, status: 'playing' }
+    const playingRound = { ...biddingRound, status: 'playing' as RoundStatus }
     expect(getRoundOpener(playingRound, [], playerMap)).toBeNull()
   })
 
