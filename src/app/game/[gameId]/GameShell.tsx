@@ -110,6 +110,18 @@ interface RoundScore {
   score: number
 }
 
+/** Returns the opener's display name when it can be definitively determined,
+ *  i.e. before any bid has been placed (current_player_id is still the first bidder). */
+export function getRoundOpener(
+  round: Round | null,
+  bids: Bid[],
+  playerMap: Record<string, Player>,
+): string | null {
+  if (!round || round.status !== 'bidding' || bids.length > 0) return null
+  if (!round.current_player_id) return null
+  return playerMap[round.current_player_id]?.displayName ?? null
+}
+
 interface Props {
   gameId: string
   userId: string
@@ -202,7 +214,6 @@ export function GameShell({
     roundRef.current = initialRound
     currentTrickRef.current = initialCurrentTrick
   }, [initialRound?.id, initialRound?.current_player_id, initialRound?.status])
-
 
   // useMemo is critical here: playerMap must be a stable reference so it doesn't
   // appear as changed on every render and tear down the Realtime channel.
@@ -593,11 +604,9 @@ export function GameShell({
       <header className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
         <div className="flex flex-col leading-tight">
           <span className="font-semibold">Round {round?.round_number ?? '—'}</span>
-          {/* Only shown before any bid is placed — at that point current_player_id
-              is definitively the opener. Disappears once bidding is underway. */}
-          {round?.status === 'bidding' && bids.length === 0 && round.current_player_id && playerMap[round.current_player_id] && (
+          {getRoundOpener(round, bids, playerMap) && (
             <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {playerMap[round.current_player_id].displayName} opens bidding
+              {getRoundOpener(round, bids, playerMap)} opens bidding
             </span>
           )}
           {roomCode && (
