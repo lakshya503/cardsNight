@@ -62,9 +62,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       )
     }
     // Dropped from the game, game not yet started, or game already finished
-    const message = existingPlayer.status === 'dropped'
-      ? 'You were dropped from this game and cannot rejoin.'
-      : 'You are already in this room'
+    let message = 'You are already in this room'
+    if (existingPlayer.status === 'dropped') {
+      message = 'You were dropped from this game and cannot rejoin.'
+    } else if (room.status === 'finished') {
+      message = 'This game has already finished.'
+    }
     return NextResponse.json(
       { error: message, roomId: room.id, code: room.code },
       { status: 409 }

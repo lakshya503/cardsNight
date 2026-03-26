@@ -196,6 +196,18 @@ describe('POST /api/rooms/[code]/join', () => {
     expect(json.error).toMatch(/dropped/i)
   })
 
+  it('returns 409 with a clear message when the game is already finished', async () => {
+    const finishedRoom = { ...ROOM, status: 'finished', current_game_id: 'game-456' }
+    vi.mocked(createClient).mockResolvedValue(makeAuthMock() as never)
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeAdminMock({ room: finishedRoom, existingPlayer: { id: 'player-row-1', status: 'active' } }) as never
+    )
+    const res = await POST(makeRequest(), makeContext())
+    expect(res.status).toBe(409)
+    const json = await res.json()
+    expect(json.error).toMatch(/finished/i)
+  })
+
   it('normalises the room code to uppercase before querying', async () => {
     const adminMock = makeAdminMock()
     vi.mocked(createClient).mockResolvedValue(makeAuthMock() as never)

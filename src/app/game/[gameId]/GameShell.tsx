@@ -603,6 +603,7 @@ export function GameShell({
             {round ? `${round.hand_size} card${round.hand_size !== 1 ? 's' : ''} this round` : ''}
           </span>
           <button
+            data-testid="how-to-play-button"
             onClick={() => setHowToPlayOpen(true)}
             className="text-xs px-2 py-2"
             style={{ color: 'var(--color-text-muted)' }}

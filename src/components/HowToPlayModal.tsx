@@ -3,6 +3,7 @@
 // switch and a sibling file in src/components/rules/.
 'use client'
 
+import { useEffect } from 'react'
 import { JudgementRules } from './rules/JudgementRules'
 
 interface Props {
@@ -20,10 +21,19 @@ function RulesContent({ gameType }: { gameType: string }) {
 }
 
 export function HowToPlayModal({ gameType, onClose }: Props) {
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
   return (
     <div
+      data-testid="how-to-play-modal"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+      style={{ backgroundColor: 'var(--color-overlay)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
@@ -38,6 +48,7 @@ export function HowToPlayModal({ gameType, onClose }: Props) {
             How to play
           </h2>
           <button
+            data-testid="how-to-play-close"
             onClick={onClose}
             aria-label="Close"
             className="text-sm"
