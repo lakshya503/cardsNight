@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { validateGuestName } from '@/lib/auth/guestName'
 
 export async function signInWithGoogle(next: string = '/') {
   const supabase = await createClient()
@@ -30,4 +31,24 @@ export async function signOut() {
   const supabase = await createClient()
   await supabase.auth.signOut()
   redirect('/sign-in')
+}
+
+export async function signInAsGuest(formData: FormData) {
+  const displayName = validateGuestName(formData.get('displayName'))
+
+  if (!displayName) {
+    redirect('/sign-in?error=invalid_name')
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.signInAnonymously({
+    options: { data: { full_name: displayName } },
+  })
+
+  if (error) {
+    console.error('[guest-auth] signInAnonymously error:', error)
+    redirect('/sign-in?error=guest_failed')
+  }
+
+  redirect('/')
 }

@@ -1,4 +1,4 @@
-import { signInWithGoogle } from '@/app/auth/actions'
+import { signInWithGoogle, signInAsGuest } from '@/app/auth/actions'
 import { createClient } from '@/lib/supabase/server'
 import { copy } from '@/lib/ui/copy'
 import { redirect } from 'next/navigation'
@@ -10,12 +10,17 @@ interface SignInPageProps {
 export default async function SignInPage({ searchParams }: SignInPageProps) {
   const { next, error } = await searchParams
 
-  // Redirect already-authenticated users (belt-and-suspenders — middleware handles this too)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (user) redirect(next?.startsWith('/') ? next : '/')
 
   const signInWithNext = signInWithGoogle.bind(null, next ?? '/')
+
+  const errorMessage =
+    error === 'invalid_name' ? copy.guest.invalidName
+    : error === 'guest_failed' ? copy.guest.guestFailed
+    : error ? copy.errors.generic
+    : null
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4"
@@ -42,7 +47,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         </div>
 
         {/* Error message */}
-        {error && (
+        {errorMessage && (
           <p
             className="w-full text-center text-sm rounded-lg px-4 py-3"
             style={{
@@ -51,7 +56,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
               borderRadius: 'var(--radius-md)',
             }}
           >
-            {copy.errors.generic}
+            {errorMessage}
           </p>
         )}
 
@@ -63,6 +68,48 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           >
             <GoogleIcon />
             {copy.auth.signInButton}
+          </button>
+        </form>
+
+        {/* Divider */}
+        <div className="w-full flex items-center gap-3">
+          <div className="flex-1 h-px" style={{ backgroundColor: 'var(--color-border)' }} />
+          <span className="text-xs whitespace-nowrap" style={{ color: 'var(--color-text-muted)' }}>
+            {copy.guest.divider}
+          </span>
+          <div className="flex-1 h-px" style={{ backgroundColor: 'var(--color-border)' }} />
+        </div>
+
+        {/* Guest sign-in form */}
+        <form action={signInAsGuest} className="w-full flex flex-col gap-3">
+          <label className="sr-only" htmlFor="displayName">{copy.guest.nameLabel}</label>
+          <input
+            id="displayName"
+            name="displayName"
+            type="text"
+            placeholder={copy.guest.namePlaceholder}
+            maxLength={24}
+            autoComplete="off"
+            required
+            className="w-full px-4 py-3 text-sm rounded-lg border outline-none"
+            style={{
+              backgroundColor: 'var(--color-background)',
+              color: 'var(--color-text)',
+              borderColor: 'var(--color-border)',
+              borderRadius: 'var(--radius-md)',
+            }}
+          />
+          <button
+            type="submit"
+            className="w-full px-6 py-3 font-medium text-sm cursor-pointer rounded-lg border"
+            style={{
+              backgroundColor: 'var(--color-surface-raised)',
+              color: 'var(--color-text)',
+              borderColor: 'var(--color-border-strong)',
+              borderRadius: 'var(--radius-md)',
+            }}
+          >
+            {copy.guest.signInButton}
           </button>
         </form>
 

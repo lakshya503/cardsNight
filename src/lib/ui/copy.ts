@@ -13,6 +13,17 @@ export const copy = {
     signOutButton:    'Sign out',
   },
 
+  // ── Guest ──────────────────────────────────────────────
+  guest: {
+    divider:          'or play as a guest',
+    namePlaceholder:  'Your name (e.g. Alice)',
+    nameLabel:        'Choose a name',
+    signInButton:     'Play as Guest',
+    profileBanner:    "You're playing as a guest — stats won't be saved after you sign out.",
+    invalidName:      'Name must be between 1 and 24 characters.',
+    guestFailed:      'Guest sign-in failed — please try again.',
+  },
+
   // ── Home ──────────────────────────────────────────────
   home: {
     heading:     "Let's play cards.",
