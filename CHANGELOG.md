@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [M3 — Play as Guest] — 2026-03-25
+
+### Added
+- "Play as Guest" option on the sign-in page — enter a display name, click the button, and get an anonymous Supabase session immediately; no Google account required
+- `validateGuestName` utility enforces a Unicode-safe allowlist (letters, digits, spaces, apostrophes, hyphens, periods; max 24 chars) to prevent HTML injection in display names
+- Guests see a "Playing as guest" banner on their profile page; stats and game history sections are hidden for anonymous users
+- DB trigger patched to handle anonymous users: `coalesce(nullif(trim(full_name), ''), email, 'Guest')` so anonymous rows satisfy the NOT NULL constraint on `profiles.display_name`
+
+---
+
 ## [M3 — Game Header Polish] — 2026-03-25
 
 ### Added
