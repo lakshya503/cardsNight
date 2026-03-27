@@ -27,7 +27,7 @@ try {
 }
 
 const cmd = (input.tool_input && input.tool_input.command) || '';
-if (!/git\s+(merge|push)/.test(cmd)) process.exit(0);
+if (!/git\s+(merge|push)/.test(cmd) && !/gh\s+pr\s+merge/.test(cmd)) process.exit(0);
 
 let sha;
 try {
