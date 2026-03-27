@@ -146,8 +146,13 @@ Included from day one. No architectural impact.
 ## Development Workflow
 
 ### Branch strategy
-- `main` — always deployable; Vercel auto-deploys on push
-- Feature branches off `main`; merge via PR (even solo — keeps history clean)
+- `main` — always deployable; Vercel auto-deploys on push; direct pushes blocked (branch protection)
+- Feature branches off `main`; merge via PR — `Tests` CI check must pass before merge is allowed
+
+### Local review pipeline
+After each commit, `code-reviewer` and `scalability-reviewer` Claude Code agents (both Haiku) are invoked within the Claude Code session before pushing. CI runs tests only — no AI review job.
+
+**Decision:** Run AI reviews within Claude Code sessions rather than via direct Anthropic API calls or CI. Rationale: covered by the Claude Code subscription (no separate API credits needed), gives faster feedback than CI, and keeps the pipeline simple for a solo hobby project.
 
 ### Local development
 ```bash
@@ -395,10 +400,24 @@ User-submitted screenshots are uploaded to a **private** Supabase Storage bucket
 
 ---
 
+## Guest / Anonymous Authentication (M3)
+
+**Decision:** Use `supabase.auth.signInAnonymously()` for guest sign-in rather than a custom session mechanism.
+
+**Rationale:** Supabase anonymous auth gives guests a real session (JWT, row-level security, Realtime subscriptions) at zero implementation cost. Guests are first-class users from the DB's perspective — no special-casing in queries or policies needed.
+
+**Implications:**
+- Anonymous users have no email; the `handle_new_user` DB trigger was patched with `coalesce(nullif(trim(full_name), ''), email, 'Guest')` to satisfy the `NOT NULL` constraint on `profiles.display_name`
+- The `profiles` table holds rows for anonymous users — display name sourced from `auth.users.raw_user_meta_data->>'full_name'`
+- Guest sessions are not persistent across devices or browsers; clearing cookies ends the session with no recovery path
+- Guest invite redirect: `signInAsGuest` reads a `next` param from the form (validated to start with `/` to prevent open redirect) and uses it as the post-auth destination so guests land directly in their invited room
+
+---
+
 ## Decisions Deferred
 
 - **Hosting cost optimization** — revisit at M4 when public traffic begins
 - **CDN / asset caching** — Vercel handles this automatically for now
 - **Database connection pooling** — Supabase handles this; revisit if query latency becomes an issue
 - **Second game architecture** — M5 concern; document how game modules will be structured when we get there
-- **`MIN_PLAYERS` constant** — reverted to `2` (supports 2–8 players; 4-player minimum removed as unnecessary)
+- **Player count minimum** — resolved: `MIN_PLAYERS = 2`, supporting 2–8 players; 4-player minimum removed as unnecessary for MVP

@@ -35,7 +35,7 @@ Always consult these documents before making product or engineering decisions:
 
 ## Product Vision
 
-> A friend sends you a link. You click it, sign in with Google, and you are playing cards within 60 seconds.
+> A friend sends you a link. You click it, sign in with Google or enter a display name as a guest, and you are playing cards within 60 seconds.
 
 - **Target users (MVP):** Friend groups using private invite rooms
 - **Target users (v2+):** Casual players via public lobby and leaderboard
@@ -85,7 +85,7 @@ Trick-taking card game, 4–10 players, one standard 52-card deck.
 ## Tech Stack
 
 - **Framework:** Next.js 16 (App Router, TypeScript)
-- **Auth + DB + Realtime:** Supabase (Google OAuth, Postgres, Postgres Changes)
+- **Auth + DB + Realtime:** Supabase (Google OAuth, anonymous guest auth, Postgres, Postgres Changes)
 - **Styling:** Tailwind CSS v4 with `@theme` design tokens
 - **Animations:** Framer Motion
 - **Fonts:** Fraunces (display) + DM Sans (body) via next/font/google
@@ -106,6 +106,27 @@ npm run test:e2e                      # E2E (dev server must be running)
 npx tsc --noEmit                      # type check
 npm run build
 ```
+
+## Local Review Pipeline
+
+**On every commit:**
+1. `npm test` runs automatically and blocks the commit on failure
+
+**After every commit, before pushing:**
+2. Invoke the `code-reviewer` agent — reviews correctness, logic, code health; writes `.commit-reviews/<SHA>-correctness.md`
+3. Invoke the `scalability-reviewer` agent — reviews DB queries, Realtime, server-side performance; writes `.commit-reviews/<SHA>-scalability.md`
+
+**On every push/merge attempt** (`git push`, `git merge`, `gh pr merge`), the pre-push gate checks:
+- Both stamp files exist for HEAD → if missing, push is blocked
+- Neither stamp contains HIGH or MEDIUM findings → if found, push is blocked
+
+Fix any HIGH or MEDIUM findings, commit the fix, re-run both agents, then retry the push.
+
+**LOW findings** are informational — they do not block the push.
+
+**At session start**, stamps for commits already pushed to the remote are cleaned up automatically.
+
+A `SessionStart` hook also warns if any open PR has failing CI checks.
 
 ## Supabase Type Generation
 

@@ -5,6 +5,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Dev Tooling] — 2026-03-27
+
+### Added
+- `code-reviewer` and `scalability-reviewer` Claude Code agents (both Haiku) — invoked within Claude Code sessions after each commit; each writes a stamp file to `.commit-reviews/<SHA>-{correctness,scalability}.md`
+- Pre-push gate blocks `git push`, `git merge`, and `gh pr merge` until both stamps exist for HEAD and neither contains HIGH or MEDIUM findings
+- Session-start cleanup removes stamps for commits already pushed to the remote
+- Pre-commit hook blocks commits if `npm test` fails
+- GitHub Actions CI runs `npm test` on every push; `Tests` is a required status check blocking merges to `main`; direct pushes to `main` blocked via branch protection
+- `SessionStart` hook warns at session open if any open PR has failing CI checks
+
+### Fixed
+- Guest sign-in via invite link now redirects to the room destination — `signInAsGuest` reads a hidden `next` field from the form and validates it before redirecting instead of always sending guests to `/`
+
+---
+
+## [M3 — Play as Guest] — 2026-03-25
+
+### Added
+- "Play as Guest" option on the sign-in page — enter a display name, click the button, and get an anonymous Supabase session immediately; no Google account required
+- `validateGuestName` utility enforces a Unicode-safe allowlist (letters, digits, spaces, apostrophes, hyphens, periods; max 24 chars) to prevent HTML injection in display names
+- Guests see a "Playing as guest" banner on their profile page; stats and game history sections are hidden for anonymous users
+- DB trigger patched to handle anonymous users: `coalesce(nullif(trim(full_name), ''), email, 'Guest')` so anonymous rows satisfy the NOT NULL constraint on `profiles.display_name`
+
+---
+
 ## [M3 — Game Header Polish] — 2026-03-25
 
 ### Added

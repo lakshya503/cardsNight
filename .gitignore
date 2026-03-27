@@ -47,4 +47,5 @@ next-env.d.ts
 .superpowers/
 .worktrees/
 .review-pending
+.commit-reviews/
 .claude/feedback-last-seen.txt

@@ -1,10 +1,10 @@
 # cardsNight
 
-A web-based multiplayer card game platform. Send a friend a link, sign in with Google, and you're playing cards in under 60 seconds.
+A web-based multiplayer card game platform. Send a friend a link, sign in with Google or join as a guest, and you're playing cards in under 60 seconds.
 
 ## What it is
 
-cardsNight hosts invite-only card game rooms. The host creates a room, shares the code or link, and friends join — no accounts beyond Google Sign-In required. The MVP ships with **Judgement**, a trick-taking game for 2–8 players.
+cardsNight hosts invite-only card game rooms. The host creates a room, shares the code or link, and friends join — sign in with Google or enter a display name as a guest, no account required. The MVP ships with **Judgement**, a trick-taking game for 2–8 players.
 
 ## Game: Judgement
 
@@ -20,7 +20,7 @@ Trick-taking card game with descending rounds (starting hand size down to 1 card
 | Layer | Choice |
 |---|---|
 | Framework | Next.js 16 (App Router, TypeScript) |
-| Auth + DB + Realtime | Supabase (Google OAuth, Postgres, Postgres Changes) |
+| Auth + DB + Realtime | Supabase (Google OAuth, anonymous guest auth, Postgres, Postgres Changes) |
 | Styling | Tailwind CSS v4 with `@theme` design tokens |
 | Animations | Framer Motion |
 | Tests | Vitest + React Testing Library, Playwright (E2E) |
@@ -50,6 +50,6 @@ npm run test:e2e
 |---|---|
 | M1 ✅ | Auth, rooms, waiting room |
 | M2 ✅ | Judgement fully playable end-to-end |
-| M3 | Polish, disconnection handling, mobile |
+| M3 ✅ | Polish, disconnection handling, mobile, guest auth |
 | M4 | Public rooms, lobby, leaderboard |
 | M5 | Second card game |

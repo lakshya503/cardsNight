@@ -82,6 +82,9 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
         {/* Guest sign-in form */}
         <form action={signInAsGuest} className="w-full flex flex-col gap-3">
+          {next?.startsWith('/') && (
+            <input type="hidden" name="next" value={next} />
+          )}
           <label className="sr-only" htmlFor="displayName">{copy.guest.nameLabel}</label>
           <input
             id="displayName"
