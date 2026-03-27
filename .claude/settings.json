@@ -11,7 +11,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node -e \"const i=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));const cmd=(i.tool_input&&i.tool_input.command)||'';if(/git\\s+(merge|push)/.test(cmd)){const fs=require('fs');const f='/Users/lakshyalahoty/Desktop/cardsNight/.review-pending';try{const sha=fs.readFileSync(f,'utf8').trim();console.error('\\n[GATE BLOCKED] Code review is pending for commit '+sha+'.\\nYou must:\\n  1. Wait for the code-reviewer task-notification\\n  2. Confirm zero Must Fix findings\\n  3. Delete .review-pending (rm .review-pending)\\nThen retry the merge/push.');process.exit(1);}catch(e){}}\" 2>&1 || exit 1"
+            "command": "INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r '.tool_input.command // \"\"'); if echo \"$CMD\" | grep -qE '(^|[[:space:]])git commit'; then cd /Users/lakshyalahoty/Desktop/projects/cardsNight && npm test 1>&2; if [ $? -ne 0 ]; then printf '{\"continue\":false,\"stopReason\":\"Tests failed — commit blocked. Fix the failures above before committing.\"}\\n'; fi; fi",
+            "timeout": 120,
+            "statusMessage": "Running tests before commit..."
+          },
+          {
+            "type": "command",
+            "command": "node /Users/lakshyalahoty/Desktop/projects/cardsNight/.claude/scripts/check-review-gate.js 2>&1 || exit 1"
           }
         ]
       }
@@ -22,7 +28,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node -e \"const i=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));const cmd=(i.tool_input&&i.tool_input.command)||'';if(/git commit/.test(cmd)){const fs=require('fs');const {execSync}=require('child_process');try{const sha=execSync('git rev-parse HEAD',{cwd:'/Users/lakshyalahoty/Desktop/cardsNight'}).toString().trim();fs.writeFileSync('/Users/lakshyalahoty/Desktop/cardsNight/.review-pending',sha);console.log('[gate] .review-pending written for '+sha+'. Launch code-reviewer agent now. After zero Must Fix confirmed, run: rm .review-pending');}catch(e){console.log('[gate] Commit detected — launch code-reviewer agent now.');}}\" 2>/dev/null || true"
+            "asyncRewake": true,
+            "command": "INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r '.tool_input.command // \"\"'); if echo \"$CMD\" | grep -qE '(^|[[:space:]])git commit'; then node /Users/lakshyalahoty/Desktop/projects/cardsNight/.claude/scripts/run-reviews.js; fi",
+            "statusMessage": "Running post-commit reviews..."
           }
         ]
       }
@@ -32,7 +40,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/lakshyalahoty/Desktop/cardsNight/.claude/scripts/check-feedback-issues.js 2>/dev/null || true"
+            "command": "node /Users/lakshyalahoty/Desktop/projects/cardsNight/.claude/scripts/check-feedback-issues.js 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "node /Users/lakshyalahoty/Desktop/projects/cardsNight/.claude/scripts/check-pr-status.js 2>/dev/null || true"
           }
         ]
       }

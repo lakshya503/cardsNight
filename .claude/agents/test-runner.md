@@ -17,7 +17,7 @@ You are a test runner for the cardsNight project. Your only job is to run tests 
 
 ## Rules
 
-- Always run from `/Users/lakshyalahoty/Desktop/cardsNight`
+- Always run from `/Users/lakshyalahoty/Desktop/projects/cardsNight`
 - Run unit tests by default unless E2E is specifically requested
 - If all tests pass: report the count and duration only — nothing else
 - If tests fail: report ONLY the failing test names, the error message, and the file/line number. Do not include passing tests.
