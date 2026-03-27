@@ -141,16 +141,12 @@ async function postComment(body) {
 }
 
 async function callAPI(client, model, prompt) {
-  try {
-    const msg = await client.messages.create({
-      model,
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    });
-    return msg.content[0].text;
-  } catch (err) {
-    return `_Review failed: ${err.message}_`;
-  }
+  const msg = await client.messages.create({
+    model,
+    max_tokens: 1024,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  return msg.content[0].text;
 }
 
 function correctnessPrompt(diff, sha) {
@@ -215,6 +211,7 @@ Keep total under 25 lines.`;
 }
 
 main().catch((err) => {
-  console.error('[ci-review] Unexpected error:', err.message);
-  process.exit(0); // Don't block CI on unexpected failures
+  console.error('[ci-review] Reviews failed to run:', err.message);
+  console.error('[ci-review] Failing CI — reviews must complete before merging.');
+  process.exit(1);
 });
