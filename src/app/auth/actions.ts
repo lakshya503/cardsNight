@@ -40,6 +40,9 @@ export async function signInAsGuest(formData: FormData) {
     redirect('/sign-in?error=invalid_name')
   }
 
+  const next = formData.get('next')
+  const destination = typeof next === 'string' && next.startsWith('/') ? next : '/'
+
   const supabase = await createClient()
   const { error } = await supabase.auth.signInAnonymously({
     options: { data: { full_name: displayName } },
@@ -50,5 +53,5 @@ export async function signInAsGuest(formData: FormData) {
     redirect('/sign-in?error=guest_failed')
   }
 
-  redirect('/')
+  redirect(destination)
 }
