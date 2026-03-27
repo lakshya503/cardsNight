@@ -150,9 +150,9 @@ Included from day one. No architectural impact.
 - Feature branches off `main`; merge via PR — `Tests` CI check must pass before merge is allowed
 
 ### Local review pipeline
-Post-commit hooks run correctness and scalability reviews in parallel (both Haiku via Anthropic API) using `asyncRewake` — non-blocking, session is woken on HIGH or MEDIUM findings. A pre-push gate blocks `git push`, `git merge`, and `gh pr merge` until both review stamp files exist in `.commit-reviews/`. CI runs tests only (AI review job removed — redundant with local hooks and adds API cost).
+After each commit, `code-reviewer` and `scalability-reviewer` Claude Code agents (both Haiku) are invoked within the Claude Code session before pushing. CI runs tests only — no AI review job.
 
-**Decision:** Run AI reviews locally rather than in CI. Rationale: local reviews give faster feedback (no push/wait cycle), use the existing Claude Code subscription rather than separate API credits, and the pre-push gate provides the same merge safety guarantee.
+**Decision:** Run AI reviews within Claude Code sessions rather than via direct Anthropic API calls or CI. Rationale: covered by the Claude Code subscription (no separate API credits needed), gives faster feedback than CI, and keeps the pipeline simple for a solo hobby project.
 
 ### Local development
 ```bash
@@ -169,7 +169,6 @@ NEXT_PUBLIC_SUPABASE_URL=       # Supabase project URL (safe to expose)
 NEXT_PUBLIC_SUPABASE_ANON_KEY=  # Supabase anon key (safe to expose)
 SUPABASE_SERVICE_ROLE_KEY=      # Service role key — server-side only, never expose to client
 NEXT_PUBLIC_SITE_URL=           # Production URL (e.g. https://cardsnight.vercel.app) — required for OAuth callback in production; falls back to http://localhost:3000 for local dev
-ANTHROPIC_API_KEY=              # Required for local post-commit review hooks; without it reviews are skipped and the pre-push gate will block all pushes
 ```
 
 ---

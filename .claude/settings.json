@@ -14,23 +14,6 @@
             "command": "INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r '.tool_input.command // \"\"'); if echo \"$CMD\" | grep -qE '(^|[[:space:]])git commit'; then cd /Users/lakshyalahoty/Desktop/projects/cardsNight && npm test 1>&2; if [ $? -ne 0 ]; then printf '{\"continue\":false,\"stopReason\":\"Tests failed — commit blocked. Fix the failures above before committing.\"}\\n'; fi; fi",
             "timeout": 120,
             "statusMessage": "Running tests before commit..."
-          },
-          {
-            "type": "command",
-            "command": "node /Users/lakshyalahoty/Desktop/projects/cardsNight/.claude/scripts/check-review-gate.js 2>&1 || exit 1"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "asyncRewake": true,
-            "command": "INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r '.tool_input.command // \"\"'); if echo \"$CMD\" | grep -qE '(^|[[:space:]])git commit'; then node /Users/lakshyalahoty/Desktop/projects/cardsNight/.claude/scripts/run-reviews.js; fi",
-            "statusMessage": "Running post-commit reviews..."
           }
         ]
       }

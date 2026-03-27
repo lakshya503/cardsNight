@@ -8,8 +8,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Dev Tooling] — 2026-03-27
 
 ### Added
-- Post-commit review pipeline: correctness and scalability reviewers (both Haiku) run in parallel via Anthropic API after every commit; results written as stamp files to `.commit-reviews/`; Claude Code session woken on HIGH or MEDIUM findings
-- Pre-push gate blocks `git push`, `git merge`, and `gh pr merge` until both review stamps exist for HEAD
+- `code-reviewer` and `scalability-reviewer` Claude Code agents (both Haiku) for correctness and scalability review — invoked within Claude Code sessions after each commit, no separate API key required
+- Pre-commit hook blocks commits if `npm test` fails
 - GitHub Actions CI runs `npm test` on every push; `Tests` is a required status check blocking merges to `main`; direct pushes to `main` blocked via branch protection
 - `SessionStart` hook warns at session open if any open PR has failing CI checks
 

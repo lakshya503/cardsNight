@@ -97,7 +97,7 @@ Trick-taking card game, 4–10 players, one standard 52-card deck.
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in Supabase keys + ANTHROPIC_API_KEY (required for local review hooks)
+cp .env.example .env.local   # fill in Supabase keys
 npm run dev
 
 npm test                              # unit tests (Node 20.19+)
@@ -109,16 +109,19 @@ npm run build
 
 ## Local Review Pipeline
 
-Every commit on a feature branch triggers two automatic hooks:
+Every commit on a feature branch triggers:
 
 1. **Pre-commit:** `npm test` runs and blocks the commit on failure
-2. **Post-commit (async):** `.claude/scripts/run-reviews.js` calls correctness and scalability reviewers in parallel (both Haiku) via the Anthropic API. Results are written to `.commit-reviews/<SHA>-correctness.md` and `.commit-reviews/<SHA>-scalability.md`. The Claude Code session is woken if HIGH or MEDIUM issues are found.
 
-A pre-push gate (`.claude/scripts/check-review-gate.js`) intercepts `git push`, `git merge`, and `gh pr merge` — all three are blocked until both stamp files exist for HEAD. **Never attempt a push or merge before the async reviews complete.**
+After each commit, invoke the two Claude Code review agents before pushing:
 
-- **HIGH or MEDIUM** findings must be fixed and re-committed before merging
+2. **Correctness review:** `code-reviewer` agent (Haiku) — checks that the change achieves its goal, flags logic errors, missing tests, code health issues
+3. **Scalability review:** `scalability-reviewer` agent (Haiku) — checks for N+1 queries, unbounded queries, Realtime subscription issues, O(n) server ops
+
+Both agents run within the Claude Code session (no separate API key required). **Do not push until both agents have run and any HIGH or MEDIUM findings are resolved.**
+
+- **HIGH or MEDIUM** findings must be fixed and re-committed before pushing
 - **LOW** findings are informational only
-- `ANTHROPIC_API_KEY` must be set in `.env.local` — without it, reviews are skipped and the gate will block all pushes
 
 A `SessionStart` hook warns at session open if any open PR has failing CI checks.
 
