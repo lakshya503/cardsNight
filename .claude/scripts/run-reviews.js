@@ -70,7 +70,7 @@ async function main() {
     `# Scalability Review — ${shortSha}\n_${timestamp}_\n\n${scalability}\n`
   );
 
-  const hasHigh = /\*\*HIGH\*\*/i.test(correctness) || /\*\*HIGH\*\*/i.test(scalability);
+  const hasHigh = /\*\*(HIGH|MEDIUM)\*\*/i.test(correctness) || /\*\*(HIGH|MEDIUM)\*\*/i.test(scalability);
 
   if (hasHigh) {
     // Exit 2 → asyncRewake wakes the model with the review output

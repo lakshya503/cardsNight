@@ -63,7 +63,7 @@ async function main() {
   ]);
 
   const hasHigh =
-    /\*\*HIGH\*\*/i.test(correctness) || /\*\*HIGH\*\*/i.test(scalability);
+    /\*\*(HIGH|MEDIUM)\*\*/i.test(correctness) || /\*\*(HIGH|MEDIUM)\*\*/i.test(scalability);
 
   console.log('\n--- CORRECTNESS REVIEW ---\n' + correctness);
   console.log('\n--- SCALABILITY REVIEW ---\n' + scalability);
@@ -83,8 +83,8 @@ async function main() {
 
 function formatComment(sha, correctness, scalability, hasHigh) {
   const badge = hasHigh
-    ? '🔴 **HIGH priority issues found — merge blocked**'
-    : '✅ **No critical issues — ready to merge**';
+    ? '🔴 **HIGH or MEDIUM priority issues found — merge blocked**'
+    : '✅ **No blocking issues — ready to merge**';
 
   return [
     `## AI Code Review — \`${sha}\``,
