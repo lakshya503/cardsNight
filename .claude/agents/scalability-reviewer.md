@@ -37,6 +37,8 @@ You are a scalability reviewer for cardsNight — a Next.js 16 / Supabase / Type
 
 ## Output format
 
+You MUST use exactly these headings — the pre-push gate reads the stamp file for these keywords to decide whether to block the merge. Do not use any other categories.
+
 Categorise findings as HIGH / MEDIUM / LOW — skip any bucket with no items:
 
 **HIGH** — will break or become unacceptably slow with 100+ concurrent games

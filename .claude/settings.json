@@ -11,7 +11,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r '.tool_input.command // \"\"'); if echo \"$CMD\" | grep -qE '(^|[[:space:]])git commit'; then cd /Users/lakshyalahoty/Desktop/projects/cardsNight && npm test 1>&2; if [ $? -ne 0 ]; then printf '{\"continue\":false,\"stopReason\":\"Tests failed — commit blocked. Fix the failures above before committing.\"}\\n'; fi; fi",
+            "command": "INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r '.tool_input.command // \"\"'); if echo \"$CMD\" | grep -qE '(^|[[:space:]])git commit'; then cd /Users/lakshyalahoty/Desktop/projects/cardsNight && npm test 1>&2; if [ $? -ne 0 ]; then printf '{\"continue\":false,\"stopReason\":\"Tests failed — commit blocked. Fix the failures above before committing.\"}\\n'; exit 1; fi; fi",
             "timeout": 120,
             "statusMessage": "Running tests before commit..."
           },

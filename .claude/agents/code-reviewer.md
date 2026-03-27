@@ -43,6 +43,8 @@ You are a senior code reviewer for the cardsNight project — a Next.js 16 / Sup
 
 ## Output format
 
+You MUST use exactly these headings — the pre-push gate reads the stamp file for these keywords to decide whether to block the merge. Do not use "Must fix", "Should fix", or any other categories.
+
 Categorise findings as HIGH / MEDIUM / LOW — skip any bucket with no items:
 
 **HIGH** — broken functionality, data loss risk, security hole, failing tests
