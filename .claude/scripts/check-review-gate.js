@@ -63,8 +63,12 @@ const blocking = [];
 const correctness = readFileSync(correctnessFile, 'utf8');
 const scalability = readFileSync(scalabilityFile, 'utf8');
 
-if (/\*\*(HIGH|MEDIUM)\*\*/i.test(correctness)) blocking.push('correctness');
-if (/\*\*(HIGH|MEDIUM)\*\*/i.test(scalability)) blocking.push('scalability');
+// Match **HIGH** or **MEDIUM** only when followed by at least one bullet point
+// (skips empty section headings that agents write with no findings under them)
+const hasFindings = (content) => /\*\*(HIGH|MEDIUM)\*\*[^\n]*\n\s*- /m.test(content);
+
+if (hasFindings(correctness)) blocking.push('correctness');
+if (hasFindings(scalability)) blocking.push('scalability');
 
 if (blocking.length > 0) {
   process.stderr.write(
