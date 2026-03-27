@@ -54,15 +54,16 @@ Categorise findings as HIGH / MEDIUM / LOW — skip any bucket with no items:
 
 Keep total response under 25 lines.
 
-## After completing the review
+## Mandatory final step — ALWAYS do this
 
-Run these commands using the Bash tool to write the stamp file:
+This step is required regardless of findings. Do not skip it.
 
+Using the Bash tool, run:
 ```bash
-SHA=$(git rev-parse HEAD)
-mkdir -p /Users/lakshyalahoty/Desktop/projects/cardsNight/.commit-reviews
+SHA=$(git rev-parse HEAD) && mkdir -p /Users/lakshyalahoty/Desktop/projects/cardsNight/.commit-reviews
 ```
 
-Then write your full review output to `/Users/lakshyalahoty/Desktop/projects/cardsNight/.commit-reviews/${SHA}-scalability.md`.
+Then use the Write tool to write your complete review output to:
+`/Users/lakshyalahoty/Desktop/projects/cardsNight/.commit-reviews/<SHA>-scalability.md`
 
-Always write the stamp — even if issues were found. The pre-push gate reads the content to decide whether to block.
+The pre-push gate reads this file to decide whether to block the push. If you do not write it, the push will be blocked with "missing review".

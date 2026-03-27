@@ -24,10 +24,12 @@ try {
   const raw = require('fs').readFileSync('/dev/stdin', 'utf8');
   input = JSON.parse(raw);
 } catch {
-  process.exit(0);
+  process.exit(0); // Hook fired outside expected context — allow through
 }
 
-const cmd = (input.tool_input && input.tool_input.command) || '';
+if (!input || !input.tool_input) process.exit(0);
+
+const cmd = input.tool_input.command || '';
 if (!/git\s+(merge|push)/.test(cmd) && !/gh\s+pr\s+merge/.test(cmd)) process.exit(0);
 
 let sha;
