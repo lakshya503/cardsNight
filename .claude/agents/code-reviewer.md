@@ -57,3 +57,16 @@ Categorise findings as HIGH / MEDIUM / LOW — skip any bucket with no items:
 **Verdict:** one sentence — ready to merge or not.
 
 Keep total response under 40 lines.
+
+## After completing the review
+
+Run these commands using the Bash tool to write the stamp file:
+
+```bash
+SHA=$(git rev-parse HEAD)
+mkdir -p /Users/lakshyalahoty/Desktop/projects/cardsNight/.commit-reviews
+```
+
+Then write your full review output to `/Users/lakshyalahoty/Desktop/projects/cardsNight/.commit-reviews/${SHA}-correctness.md`.
+
+Always write the stamp — even if issues were found. The pre-push gate reads the content to decide whether to block.

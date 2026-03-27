@@ -109,21 +109,24 @@ npm run build
 
 ## Local Review Pipeline
 
-Every commit on a feature branch triggers:
+**On every commit:**
+1. `npm test` runs automatically and blocks the commit on failure
 
-1. **Pre-commit:** `npm test` runs and blocks the commit on failure
+**After every commit, before pushing:**
+2. Invoke the `code-reviewer` agent — reviews correctness, logic, code health; writes `.commit-reviews/<SHA>-correctness.md`
+3. Invoke the `scalability-reviewer` agent — reviews DB queries, Realtime, server-side performance; writes `.commit-reviews/<SHA>-scalability.md`
 
-After each commit, invoke the two Claude Code review agents before pushing:
+**On every push/merge attempt** (`git push`, `git merge`, `gh pr merge`), the pre-push gate checks:
+- Both stamp files exist for HEAD → if missing, push is blocked
+- Neither stamp contains HIGH or MEDIUM findings → if found, push is blocked
 
-2. **Correctness review:** `code-reviewer` agent (Haiku) — checks that the change achieves its goal, flags logic errors, missing tests, code health issues
-3. **Scalability review:** `scalability-reviewer` agent (Haiku) — checks for N+1 queries, unbounded queries, Realtime subscription issues, O(n) server ops
+Fix any HIGH or MEDIUM findings, commit the fix, re-run both agents, then retry the push.
 
-Both agents run within the Claude Code session (no separate API key required). **Do not push until both agents have run and any HIGH or MEDIUM findings are resolved.**
+**LOW findings** are informational — they do not block the push.
 
-- **HIGH or MEDIUM** findings must be fixed and re-committed before pushing
-- **LOW** findings are informational only
+**At session start**, stamps for commits already pushed to the remote are cleaned up automatically.
 
-A `SessionStart` hook warns at session open if any open PR has failing CI checks.
+A `SessionStart` hook also warns if any open PR has failing CI checks.
 
 ## Supabase Type Generation
 
