@@ -35,7 +35,7 @@ Always consult these documents before making product or engineering decisions:
 
 ## Product Vision
 
-> A friend sends you a link. You click it, sign in with Google, and you are playing cards within 60 seconds.
+> A friend sends you a link. You click it, sign in with Google or enter a display name as a guest, and you are playing cards within 60 seconds.
 
 - **Target users (MVP):** Friend groups using private invite rooms
 - **Target users (v2+):** Casual players via public lobby and leaderboard
@@ -85,7 +85,7 @@ Trick-taking card game, 4–10 players, one standard 52-card deck.
 ## Tech Stack
 
 - **Framework:** Next.js 16 (App Router, TypeScript)
-- **Auth + DB + Realtime:** Supabase (Google OAuth, Postgres, Postgres Changes)
+- **Auth + DB + Realtime:** Supabase (Google OAuth, anonymous guest auth, Postgres, Postgres Changes)
 - **Styling:** Tailwind CSS v4 with `@theme` design tokens
 - **Animations:** Framer Motion
 - **Fonts:** Fraunces (display) + DM Sans (body) via next/font/google
@@ -97,7 +97,7 @@ Trick-taking card game, 4–10 players, one standard 52-card deck.
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in Supabase keys
+cp .env.example .env.local   # fill in Supabase keys + ANTHROPIC_API_KEY (required for local review hooks)
 npm run dev
 
 npm test                              # unit tests (Node 20.19+)
@@ -106,6 +106,21 @@ npm run test:e2e                      # E2E (dev server must be running)
 npx tsc --noEmit                      # type check
 npm run build
 ```
+
+## Local Review Pipeline
+
+Every commit on a feature branch triggers two automatic hooks:
+
+1. **Pre-commit:** `npm test` runs and blocks the commit on failure
+2. **Post-commit (async):** `.claude/scripts/run-reviews.js` calls correctness and scalability reviewers in parallel (both Haiku) via the Anthropic API. Results are written to `.commit-reviews/<SHA>-correctness.md` and `.commit-reviews/<SHA>-scalability.md`. The Claude Code session is woken if HIGH or MEDIUM issues are found.
+
+A pre-push gate (`.claude/scripts/check-review-gate.js`) intercepts `git push`, `git merge`, and `gh pr merge` — all three are blocked until both stamp files exist for HEAD. **Never attempt a push or merge before the async reviews complete.**
+
+- **HIGH or MEDIUM** findings must be fixed and re-committed before merging
+- **LOW** findings are informational only
+- `ANTHROPIC_API_KEY` must be set in `.env.local` — without it, reviews are skipped and the gate will block all pushes
+
+A `SessionStart` hook warns at session open if any open PR has failing CI checks.
 
 ## Supabase Type Generation
 
