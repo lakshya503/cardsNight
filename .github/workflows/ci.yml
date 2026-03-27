@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     # Only run on pull requests — not on every branch push (saves API costs)
     if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
